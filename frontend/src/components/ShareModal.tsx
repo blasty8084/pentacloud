@@ -15,7 +15,7 @@ interface ShareModalProps {
 }
 
 export function ShareModal({ file, onCreate, onClose }: ShareModalProps) {
-  const [expiresInHours, setExpiresInHours] = useState<number | ''>('');
+  const [expiresInHours, setExpiresInHours] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -23,7 +23,8 @@ export function ShareModal({ file, onCreate, onClose }: ShareModalProps) {
   const handleCreate = async () => {
     setLoading(true);
     try {
-      const result = await onCreate(file.id, expiresInHours ? parseInt(expiresInHours as string, 10) : undefined);
+      const hours = expiresInHours ? parseInt(expiresInHours, 10) : undefined;
+      const result = await onCreate(file.id, hours);
       if (result) {
         setShareUrl(result.shareUrl);
         setCopied(false);

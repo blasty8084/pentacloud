@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Download, X, ChevronLeft, ChevronRight, RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, X, RotateCcw, RotateCw, ZoomIn, ZoomOut, File as FileIcon } from 'lucide-react';
 import { filesApi } from '../api/client';
-import { formatBytes } from '../utils/format';
 
 export default function FilePreview() {
   const { fileId } = useParams<{ fileId: string }>();
@@ -41,11 +40,14 @@ export default function FilePreview() {
         if (match) filename = match[1].replace(/['"]/g, '');
       }
 
+      const contentType = Array.isArray(response.headers['content-type'])
+        ? response.headers['content-type'][0]
+        : response.headers['content-type'];
       setFile({
         id: fileId!,
         name: filename,
         original_name: filename,
-        mime_type: response.headers['content-type'] || 'application/octet-stream',
+        mime_type: (contentType as string) || 'application/octet-stream',
         size: response.data.size || 0,
         b2_account_id: '',
         b2_file_name: '',
@@ -171,7 +173,7 @@ export default function FilePreview() {
         {!isImage && !isPdf && !isText && (
           <div className="text-center text-white">
             <div className="w-20 h-20 rounded-xl bg-gray-800 flex items-center justify-center mx-auto mb-4">
-              <File className="w-10 h-10 text-gray-400" />
+              <FileIcon className="w-10 h-10 text-gray-400" />
             </div>
             <h2 className="text-xl font-medium mb-2">Preview Not Available</h2>
             <p className="text-gray-400 mb-6">This file type cannot be previewed in the browser.</p>
@@ -209,4 +211,3 @@ export default function FilePreview() {
   );
 }
 
-import { File } from 'lucide-react';

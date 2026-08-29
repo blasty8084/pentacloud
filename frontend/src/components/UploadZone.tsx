@@ -1,6 +1,8 @@
-import { useState, useRef, useCallback, DragEvent, ChangeEvent } from 'react';
-import { Upload, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import type { DragEvent, ChangeEvent } from 'react';
+import { Upload, X, Loader2, CheckCircle, AlertCircle, Image, FileText, File } from 'lucide-react';
 import { useUpload } from '../context/UploadContext';
+import { formatBytes } from '../utils/format';
 
 interface UploadZoneProps {
   onUpload: (file: File, folderId?: string) => Promise<void>;
@@ -138,7 +140,7 @@ export function UploadZone({ onUpload, folderId, disabled }: UploadZoneProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-            <p className="text-xs text-gray-500">{formatSize(file.size)}</p>
+            <p className="text-xs text-gray-500">{formatBytes(file.size)}</p>
           </div>
           <button
             onClick={() => {
@@ -187,14 +189,4 @@ function FileIcon({ file, className }: { file: File; className?: string }) {
   if (file.type === 'application/pdf') return <FileText className={className} />;
   if (file.type.startsWith('text/')) return <FileText className={className} />;
   return <File className={className} />;
-}
-
-import { Image, FileText, File } from 'lucide-react';
-
-function formatSize(bytes: number) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

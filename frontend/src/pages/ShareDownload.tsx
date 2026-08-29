@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, Clock, AlertCircle, FileText, Image, File } from 'lucide-react';
+import { Download, AlertCircle, FileText, Image, File } from 'lucide-react';
 import { sharesApi } from '../api/client';
 import { formatBytes } from '../utils/format';
 
@@ -29,10 +29,13 @@ export default function ShareDownload() {
         const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (match) filename = match[1].replace(/['"]/g, '');
       }
+      const contentType = Array.isArray(response.headers['content-type'])
+        ? response.headers['content-type'][0]
+        : response.headers['content-type'];
       setFile({
         name: filename,
         size: response.data.size || 0,
-        mimeType: response.headers['content-type'] || 'application/octet-stream',
+        mimeType: (contentType as string) || 'application/octet-stream',
       });
     } catch (err: any) {
       if (err.response?.status === 404) setError('Share link not found');
@@ -152,12 +155,4 @@ export default function ShareDownload() {
       </div>
     </div>
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

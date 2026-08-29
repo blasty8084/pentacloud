@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { useState, useRef, useEffect } from 'react';
+import React, { type ReactNode, type ReactElement, createContext, useContext, useState, useRef, useEffect } from 'react';
 
 interface MenuProps {
   children: ReactNode;
@@ -22,12 +21,6 @@ interface MenuContextValue {
 }
 
 const MenuContext = createContext<MenuContextValue | null>(null);
-
-function createContext<T>(defaultValue: T) {
-  return React.createContext(defaultValue);
-}
-
-import React from 'react';
 
 export function Menu({ children }: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +47,7 @@ export function Menu({ children }: MenuProps) {
 }
 
 function useMenuContext() {
-  const context = React.useContext(MenuContext);
+  const context = useContext(MenuContext);
   if (!context) {
     throw new Error('Menu components must be used within Menu');
   }
@@ -63,10 +56,10 @@ function useMenuContext() {
 
 export function MenuTrigger({ children, asChild }: MenuTriggerProps) {
   const { isOpen, setIsOpen } = useMenuContext();
-  const child = React.Children.only(children);
+  const child = React.Children.only(children) as ReactElement<any>;
 
   if (asChild) {
-    return React.cloneElement(child as React.ReactElement<any>, {
+    return React.cloneElement(child, {
       onClick: (e: React.MouseEvent) => {
         e.stopPropagation();
         setIsOpen(!isOpen);

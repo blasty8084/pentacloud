@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUpload } from '../context/UploadContext';
-import { filesApi, foldersApi, storageApi, sharesApi } from '../api/client';
+import { filesApi, foldersApi, sharesApi } from '../api/client';
 import { Button } from '../components/Button';
-import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { UploadZone } from '../components/UploadZone';
 import { FileGrid } from '../components/FileGrid';
@@ -14,13 +13,14 @@ import { ShareModal } from '../components/ShareModal';
 import { RenameModal } from '../components/RenameModal';
 import { MoveModal } from '../components/MoveModal';
 import { SearchBar } from '../components/SearchBar';
+import { formatBytes, formatDate } from '../utils/format';
 import {
-  FolderPlus, Upload, RefreshCw, LogOut, Menu, X, ChevronRight,
+  FolderPlus, LogOut, Menu, X, ChevronRight,
   MoreVertical, Download, Edit, Trash2, Share2, Eye, FileText,
-  Image, File, Folder, Search, Settings
+  Image, File, Folder, Settings, Cloud
 } from 'lucide-react';
 
-interface File {
+interface BackendFile {
   id: string;
   name: string;
   original_name: string;
@@ -38,18 +38,12 @@ interface Folder {
   children?: Folder[];
 }
 
-interface Share {
-  token: string;
-  shareUrl: string;
-  expiresAt: number | null;
-}
-
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const { uploads, clearCompleted } = useUpload();
+  const { uploads } = useUpload();
   const navigate = useNavigate();
 
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<BackendFile[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderTree, setFolderTree] = useState<Folder[]>([]);
@@ -61,7 +55,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showStorage, setShowStorage] = useState(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
@@ -99,13 +93,12 @@ export default function Dashboard() {
   useEffect(() => {
     const handleUploadProgress = (event: CustomEvent) => {
       const { fileId, progress } = event.detail;
-      // UploadContext handles this
     };
     window.addEventListener('upload-progress', handleUploadProgress as EventListener);
     return () => window.removeEventListener('upload-progress', handleUploadProgress as EventListener);
   }, []);
 
-  const handleFileUpload = async (file: File, folderId?: string) => {
+  const handleFileUpload = async (file: globalThis.File, folderId?: string) => {
     try {
       await filesApi.upload(file, folderId);
       fetchFiles();
@@ -167,7 +160,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownload = async (file: File) => {
+  const handleDownload = async (file: BackendFile) => {
     try {
       const response = await filesApi.download(file.id);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -192,7 +185,7 @@ export default function Dashboard() {
     }
   };
 
-  const handlePreview = (file: File) => {
+  const handlePreview = (file: BackendFile) => {
     navigate(`/preview/${file.id}`);
   };
 
@@ -201,22 +194,6 @@ export default function Dashboard() {
     if (mimeType === 'application/pdf') return <FileText className="w-5 h-5 text-red-500" />;
     if (mimeType?.startsWith('text/')) return <FileText className="w-5 h-5 text-blue-500" />;
     return <File className="w-5 h-5 text-gray-500" />;
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
   };
 
   const sortedFiles = [...files].sort((a, b) => {
@@ -240,12 +217,13 @@ export default function Dashboard() {
     return 0;
   });
 
-  const breadcrumbs = [];
+  const breadcrumbs: Folder[] = [];
   if (currentFolderId) {
-    let current = folders.find(f => f.id === currentFolderId);
+    let current: Folder | undefined = folders.find(f => f.id === currentFolderId);
     while (current) {
       breadcrumbs.unshift(current);
-      current = folders.find(f => f.id === current.parent_id);
+      const parentId = current.parent_id;
+      current = parentId ? folders.find(f => f.id === parentId) : undefined;
     }
   }
 
@@ -323,7 +301,7 @@ export default function Dashboard() {
                 >
                   <Folder className="w-4 h-4 inline" />
                 </button>
-                {breadcrumbs.map((folder, i) => (
+                {breadcrumbs.map((folder) => (
                   <span key={folder.id} className="flex items-center gap-1">
                     <ChevronRight className="w-4 h-4" />
                     <button
@@ -383,7 +361,7 @@ export default function Dashboard() {
             </div>
             <UploadZone
               onUpload={handleFileUpload}
-              folderId={currentFolderId}
+              folderId={currentFolderId ?? undefined}
               disabled={uploads.some(u => u.status === 'uploading')}
             />
           </div>
@@ -419,7 +397,7 @@ export default function Dashboard() {
                   setShareModalOpen(true);
                 }}
                 getFileIcon={getFileIcon}
-                formatSize={formatSize}
+                formatSize={formatBytes}
                 formatDate={formatDate}
               />
             )}
@@ -464,5 +442,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-import { Cloud } from 'lucide-react';
