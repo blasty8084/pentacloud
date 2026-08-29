@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUpload } from '../context/UploadContext';
-import { filesApi, foldersApi, sharesApi } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
+import { filesApi, foldersApi, sharesApi, storageApi } from '../api/client';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { UploadZone } from '../components/UploadZone';
@@ -13,11 +14,15 @@ import { ShareModal } from '../components/ShareModal';
 import { RenameModal } from '../components/RenameModal';
 import { MoveModal } from '../components/MoveModal';
 import { SearchBar } from '../components/SearchBar';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { AccentSelector } from '../components/AccentSelector';
+import { UserMenu } from '../components/UserMenu';
 import { formatBytes, formatDate } from '../utils/format';
 import {
-  FolderPlus, LogOut, Menu, X, ChevronRight,
+  FolderPlus, LogOut, Menu, X, ChevronRight, ChevronLeft,
   MoreVertical, Download, Edit, Trash2, Share2, Eye, FileText,
-  Image, File, Folder, Settings, Cloud
+  Image, File, Folder, Settings, Cloud, HardDrive, Share, Users,
+  BarChart2, Home, Globe, Palette
 } from 'lucide-react';
 
 interface BackendFile {
@@ -38,9 +43,91 @@ interface Folder {
   children?: Folder[];
 }
 
+type NavItem = 'files' | 'shared' | 'storage' | 'settings';
+
+const navItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
+  { id: 'files', label: 'My Files', icon: <Home className="w-5 h-5" /> },
+  { id: 'shared', label: 'Shared', icon: <Share className="w-5 h-5" /> },
+  { id: 'storage', label: 'Storage Usage', icon: <BarChart2 className="w-5 h-5" /> },
+  { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
+];
+
+function StorageMeterMini({ t }: { t: (key: string) => string }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await storageApi.stats();
+        setStats(response.data);
+      } catch (err) {
+        console.error('Failed to fetch storage stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading || !stats) return null;
+
+  const totalPercent = stats.total.percentage;
+  const getColor = (p: number) => p >= 90 ? 'bg-accent-danger' : p >= 70 ? 'bg-accent-warning' : 'bg-accent-primary';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-text-secondary">{t('Total Storage')}</span>
+        <span className="font-medium text-text-primary">{formatBytes(stats.total.used)} / {formatBytes(stats.total.max)}</span>
+      </div>
+      <div className="progress-bar">
+        <div className={`progress-bar-fill ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
+      </div>
+      <div className="flex justify-between text-xs text-text-tertiary">
+        <span>{formatBytes(stats.total.used)} {t('Used')}</span>
+        <span>{formatBytes(stats.total.free)} {t('Free')}</span>
+      </div>
+    </div>
+  );
+}
+
+function SharedView({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="text-center text-text-tertiary">
+        <Share className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <h2 className="text-xl font-medium mb-2">{t('Shared')}</h2>
+        <p>Shared files and folders will appear here</p>
+      </div>
+    </div>
+  );
+}
+
+function StorageView({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-4 sm:p-0">
+      <div className="fixed inset-0 bg-overlay-backdrop z-modal" onClick={onClose} />
+      <StorageDashboard onClose={onClose} />
+    </div>
+  );
+}
+
+function SettingsView({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="flex-1 p-8 max-w-4xl mx-auto w-full">
+      <h1 className="text-2xl font-bold mb-6">{t('Settings')}</h1>
+      <div className="card p-6">
+        <p className="text-text-secondary">Settings page - Account, B2 accounts, Security, Danger Zone</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { uploads } = useUpload();
+  const { t, language, setLanguage, accent, setAccent } = useTheme();
   const navigate = useNavigate();
 
   const [files, setFiles] = useState<BackendFile[]>([]);
@@ -52,8 +139,8 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showStorage, setShowStorage] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeNav, setActiveNav] = useState<NavItem>('files');
 
   const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -146,7 +233,7 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (id: string, type: 'file' | 'folder') => {
-    if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+    if (!confirm(t(`Are you sure you want to delete this ${type}?`))) return;
     try {
       if (type === 'file') {
         await filesApi.delete(id);
@@ -227,218 +314,260 @@ export default function Dashboard() {
     }
   }
 
+  const sidebarWidth = sidebarCollapsed ? '72px' : '260px';
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="flex items-center justify-between h-16 px-4 sm:px-6">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-bg-primary flex flex-col text-text-primary">
+      <header className="bg-surface-primary border-b border-surface-border sticky top-0 z-40">
+        <div className="flex items-center justify-between h-[var(--header-height)] px-4 sm:px-6">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
-              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-lg hover:bg-surface-secondary transition-colors lg:hidden"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                <Cloud className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center flex-shrink-0">
+                <Cloud className="w-5 h-5 text-text-on-accent" />
               </div>
-              <span className="text-xl font-bold text-gray-900">PENTACLOUD</span>
+              {!sidebarCollapsed && <span className="text-xl font-bold">PENTACLOUD</span>}
             </div>
           </div>
 
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search files..."
-          />
+          <div className="flex-1 max-w-xl mx-4 sm:mx-8 hidden md:block">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t('Search files...')}
+            />
+          </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setShowStorage(!showStorage)}>
-              <Settings className="w-4 h-4" />
-            </Button>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm text-gray-600">
-              <span className="font-medium">{user?.name || user?.email}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={logout}>
-              <LogOut className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <LanguageToggle currentLang={language} onChange={setLanguage} />
+            <AccentSelector currentAccent={accent} onChange={setAccent} />
+            <UserMenu user={user} onLogout={logout} />
           </div>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
         <aside
-          className={`${sidebarOpen ? 'w-64' : 'w-0'} lg:w-64 flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-200 overflow-hidden flex flex-col`}
+          className={`flex-shrink-0 bg-surface-primary border-r border-surface-border transition-all duration-300 flex flex-col overflow-hidden`}
+          style={{ width: sidebarWidth }}
         >
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">Folders</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedFile({ name: 'new-folder', id: 'new-folder' } as any)}
+          <nav className="flex-1 flex flex-col p-4 space-y-1 overflow-y-auto">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveNav(item.id)}
+                className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  activeNav === item.id ? 'bg-accent-primary-light text-accent-primary font-medium' : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                }`}
               >
-                <FolderPlus className="w-4 h-4" />
-              </Button>
+                <span className="flex-shrink-0">{item.icon}</span>
+                {!sidebarCollapsed && <span className="truncate">{t(item.label)}</span>}
+              </button>
+            ))}
+          </nav>
+
+          {!sidebarCollapsed && (
+            <div className="p-4 border-t border-surface-border space-y-4">
+              <StorageMeterMini t={t} />
+              <div className="pt-4 border-t border-surface-border">
+                <LanguageToggle currentLang={language} onChange={setLanguage} />
+                <AccentSelector currentAccent={accent} onChange={setAccent} />
+              </div>
             </div>
-            <FolderSidebar
-              folders={folderTree}
-              currentFolderId={currentFolderId}
-              onSelect={setCurrentFolderId}
-              onCreate={handleCreateFolder}
-            />
-          </div>
+          )}
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-              <nav className="flex items-center gap-1 text-sm text-gray-600" aria-label="Breadcrumb">
-                <button
-                  onClick={() => setCurrentFolderId(null)}
-                  className="hover:text-gray-900 px-2 py-1 rounded"
-                >
-                  <Folder className="w-4 h-4 inline" />
-                </button>
-                {breadcrumbs.map((folder) => (
-                  <span key={folder.id} className="flex items-center gap-1">
-                    <ChevronRight className="w-4 h-4" />
-                    <button
-                      onClick={() => setCurrentFolderId(folder.id)}
-                      className="hover:text-gray-900 px-2 py-1 rounded"
-                    >
-                      {folder.name}
-                    </button>
-                  </span>
-                ))}
-              </nav>
-              <div className="flex items-center gap-2">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="date">Date</option>
-                  <option value="name">Name</option>
-                  <option value="size">Size</option>
-                </select>
-                <button
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="p-1.5 rounded-lg hover:bg-gray-100"
-                  aria-label={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
-                >
-                  <ChevronRight
-                    className={`w-4 h-4 transform transition-transform ${sortOrder === 'asc' ? 'rotate-90' : '-rotate-90'}`}
-                  />
-                </button>
-                <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500'}`}
-                    aria-label="Grid view"
-                  >
-                    <div className="w-5 h-5 grid grid-cols-2 gap-1">
-                      <div className="bg-current rounded" />
-                      <div className="bg-current rounded" />
-                      <div className="bg-current rounded" />
-                      <div className="bg-current rounded" />
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500'}`}
-                    aria-label="List view"
-                  >
-                    <div className="w-5 h-5 flex flex-col gap-1">
-                      <div className="h-1 bg-current rounded" />
-                      <div className="h-1 bg-current rounded w-3/4" />
-                      <div className="h-1 bg-current rounded w-1/2" />
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <UploadZone
-              onUpload={handleFileUpload}
-              folderId={currentFolderId ?? undefined}
-              disabled={uploads.some(u => u.status === 'uploading')}
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {activeNav === 'files' && (
+            <FileView
+              files={sortedFiles}
+              folders={folders}
+              folderTree={folderTree}
+              currentFolderId={currentFolderId}
+              setCurrentFolderId={setCurrentFolderId}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              sortOrder={sortOrder}
+              setSortOrder={setSortOrder}
+              loading={loading}
+              breadcrumbs={breadcrumbs}
+              onFileUpload={handleFileUpload}
+              onCreateFolder={handleCreateFolder}
+              onDownload={handleDownload}
+              onPreview={handlePreview}
+              onRename={(file) => { setSelectedFile(file); setRenameModalOpen(true); }}
+              onMove={(file) => { setSelectedFile(file); setMoveModalOpen(true); }}
+              onDelete={handleDelete}
+              onShare={(file) => { setSelectedFile(file); setShareModalOpen(true); }}
+              getFileIcon={getFileIcon}
+              formatSize={formatBytes}
+              formatDate={formatDate}
+              uploads={uploads}
+              t={t}
             />
-          </div>
+          )}
 
-          <div className="flex-1 overflow-auto p-4">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-              </div>
-            ) : sortedFiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <Folder className="w-16 h-16 mb-4 opacity-50" />
-                <p className="text-lg">No files in this folder</p>
-                <p className="text-sm">Drag and drop files above or click to upload</p>
-              </div>
-            ) : (
-              <FileGrid
-                files={sortedFiles}
-                viewMode={viewMode}
-                onDownload={handleDownload}
-                onPreview={handlePreview}
-                onRename={(file) => {
-                  setSelectedFile(file);
-                  setRenameModalOpen(true);
-                }}
-                onMove={(file) => {
-                  setSelectedFile(file);
-                  setMoveModalOpen(true);
-                }}
-                onDelete={handleDelete}
-                onShare={(file) => {
-                  setSelectedFile(file);
-                  setShareModalOpen(true);
-                }}
-                getFileIcon={getFileIcon}
-                formatSize={formatBytes}
-                formatDate={formatDate}
-              />
-            )}
-          </div>
+          {activeNav === 'shared' && <SharedView t={t} />}
+
+          {activeNav === 'storage' && <StorageView onClose={() => {}} />}
+
+          {activeNav === 'settings' && <SettingsView t={t} />}
         </main>
       </div>
 
-      <Modal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} title="Create Share Link" size="sm">
-        <ShareModal
-          file={selectedFile!}
-          onCreate={handleCreateShare}
-          onClose={() => setShareModalOpen(false)}
-        />
+      <Modal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} title={t('Create Share Link')} size="sm">
+        <ShareModal file={selectedFile!} onCreate={handleCreateShare} onClose={() => setShareModalOpen(false)} />
       </Modal>
 
-      <Modal isOpen={renameModalOpen} onClose={() => setRenameModalOpen(false)} title="Rename" size="sm">
-        <RenameModal
-          item={selectedFile!}
-          type="file"
-          onRename={handleRename}
-          onClose={() => setRenameModalOpen(false)}
-        />
+      <Modal isOpen={renameModalOpen} onClose={() => setRenameModalOpen(false)} title={t('Rename')} size="sm">
+        <RenameModal item={selectedFile!} type="file" onRename={handleRename} onClose={() => setRenameModalOpen(false)} />
       </Modal>
 
-      <Modal isOpen={moveModalOpen} onClose={() => setMoveModalOpen(false)} title="Move to Folder" size="sm">
-        <MoveModal
-          item={selectedFile!}
-          type="file"
-          folders={folders}
-          currentFolderId={currentFolderId}
-          onMove={handleMove}
-          onClose={() => setMoveModalOpen(false)}
-        />
+      <Modal isOpen={moveModalOpen} onClose={() => setMoveModalOpen(false)} title={t('Move to Folder')} size="sm">
+        <MoveModal item={selectedFile!} type="file" folders={folders} currentFolderId={currentFolderId} onMove={handleMove} onClose={() => setMoveModalOpen(false)} />
       </Modal>
+    </div>
+  );
+}
 
-      {showStorage && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-0">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowStorage(false)} />
-          <StorageDashboard onClose={() => setShowStorage(false)} />
+function FileView({
+  files,
+  folders,
+  folderTree,
+  currentFolderId,
+  setCurrentFolderId,
+  searchQuery,
+  setSearchQuery,
+  viewMode,
+  setViewMode,
+  sortBy,
+  setSortBy,
+  sortOrder,
+  setSortOrder,
+  loading,
+  breadcrumbs,
+  onFileUpload,
+  onCreateFolder,
+  onDownload,
+  onPreview,
+  onRename,
+  onMove,
+  onDelete,
+  onShare,
+  getFileIcon,
+  formatSize,
+  formatDate,
+  uploads,
+  t,
+}: any) {
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="p-4 border-b border-surface-border bg-surface-primary/50 flex-shrink-0">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <nav className="flex items-center gap-1 text-sm text-text-tertiary" aria-label="Breadcrumb">
+            <button
+              onClick={() => setCurrentFolderId(null)}
+              className="hover:text-text-primary px-2 py-1 rounded flex items-center gap-1"
+            >
+              <Folder className="w-4 h-4" />
+              {!breadcrumbs.length && <span className="font-medium">{t('All Files')}</span>}
+            </button>
+            {breadcrumbs.map((folder) => (
+              <span key={folder.id} className="flex items-center gap-1">
+                <ChevronRight className="w-4 h-4" />
+                <button
+                  onClick={() => setCurrentFolderId(folder.id)}
+                  className="hover:text-text-primary px-2 py-1 rounded truncate max-w-[150px]"
+                >
+                  {folder.name}
+                </button>
+              </span>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="input px-2 py-1 text-sm"
+            >
+              <option value="date">{t('Date Modified')}</option>
+              <option value="name">{t('Name')}</option>
+              <option value="size">{t('Size')}</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="btn-ghost btn-sm"
+              aria-label={sortOrder === 'asc' ? t('Sort descending') : t('Sort ascending')}
+            >
+              <ChevronRight className={`w-4 h-4 transform transition-transform ${sortOrder === 'asc' ? 'rotate-90' : '-rotate-90'}`} />
+            </button>
+            <div className="flex items-center gap-1 border border-surface-border rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-accent-primary-light text-accent-primary' : 'text-text-tertiary hover:text-text-primary'}`}
+                aria-label={t('Grid view')}
+              >
+                <div className="w-5 h-5 grid grid-cols-2 gap-1">
+                  <div className="bg-current rounded" />
+                  <div className="bg-current rounded" />
+                  <div className="bg-current rounded" />
+                  <div className="bg-current rounded" />
+                </div>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-accent-primary-light text-accent-primary' : 'text-text-tertiary hover:text-text-primary'}`}
+                aria-label={t('List view')}
+              >
+                <div className="w-5 h-5 flex flex-col gap-1">
+                  <div className="h-1 bg-current rounded" />
+                  <div className="h-1 bg-current rounded w-3/4" />
+                  <div className="h-1 bg-current rounded w-1/2" />
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+        <UploadZone onUpload={onFileUpload} folderId={currentFolderId ?? undefined} disabled={uploads.some(u => u.status === 'uploading')} />
+      </div>
+
+      <div className="flex-1 overflow-auto p-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
+          </div>
+        ) : files.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
+            <Folder className="w-16 h-16 mb-4 opacity-50" />
+            <p className="text-lg">{t('No files in this folder')}</p>
+            <p className="text-sm">{t('Drag and drop files above or click to upload')}</p>
+          </div>
+        ) : (
+          <FileGrid
+            files={files}
+            viewMode={viewMode}
+            onDownload={onDownload}
+            onPreview={onPreview}
+            onRename={onRename}
+            onMove={onMove}
+            onDelete={onDelete}
+            onShare={onShare}
+            getFileIcon={getFileIcon}
+            formatSize={formatSize}
+            formatDate={formatDate}
+          />
+        )}
+      </div>
     </div>
   );
 }
