@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Menu, MenuItem, MenuTrigger } from './Menu';
 import { User, LogOut, Settings } from 'lucide-react';
 
@@ -27,7 +28,7 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
           </div>
         </button>
       </MenuTrigger>
-      <MenuItem onClick={() => {}} className="flex items-center gap-2 px-3 py-2" disabled>
+      <MenuItem onClick={() => {}} className="flex items-center gap-2 px-3 py-2 pointer-events-none opacity-50">
         <div className="w-8 h-8 rounded-full bg-accent-primary-light flex items-center justify-center font-medium text-accent-primary text-sm">
           {initials}
         </div>
@@ -36,7 +37,7 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
           <p className="text-xs text-text-tertiary truncate">{user?.email}</p>
         </div>
       </MenuItem>
-      <MenuItem className="dropdown-divider" />
+      <div className="dropdown-divider" />
       <MenuItem onClick={() => {}} className="flex items-center gap-2">
         <Settings className="w-4 h-4" />
         <span>{t('Settings')}</span>

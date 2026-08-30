@@ -469,7 +469,36 @@ function FileView({
   formatDate,
   uploads,
   t,
-}: any) {
+}: {
+  files: BackendFile[];
+  folders: Folder[];
+  folderTree: Folder[];
+  currentFolderId: string | null;
+  setCurrentFolderId: (id: string | null) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  viewMode: 'grid' | 'list';
+  setViewMode: (mode: 'grid' | 'list') => void;
+  sortBy: 'name' | 'size' | 'date';
+  setSortBy: (by: 'name' | 'size' | 'date') => void;
+  sortOrder: 'asc' | 'desc';
+  setSortOrder: (order: 'asc' | 'desc') => void;
+  loading: boolean;
+  breadcrumbs: Folder[];
+  onFileUpload: (file: globalThis.File, folderId?: string) => Promise<void>;
+  onCreateFolder: (name: string, parentId?: string) => Promise<void>;
+  onDownload: (file: BackendFile) => Promise<void>;
+  onPreview: (file: BackendFile) => void;
+  onRename: (file: BackendFile) => void;
+  onMove: (file: BackendFile) => void;
+  onDelete: (id: string, type: 'file' | 'folder') => Promise<void>;
+  onShare: (file: BackendFile) => void;
+  getFileIcon: (mimeType: string) => React.ReactNode;
+  formatSize: (bytes: number) => string;
+  formatDate: (timestamp: number) => string;
+  uploads: { fileId: string; status: string }[];
+  t: (key: string) => string;
+}) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="p-4 border-b border-surface-border bg-surface-primary/50 flex-shrink-0">
@@ -538,7 +567,7 @@ function FileView({
             </div>
           </div>
         </div>
-        <UploadZone onUpload={onFileUpload} folderId={currentFolderId ?? undefined} disabled={uploads.some(u => u.status === 'uploading')} />
+        <UploadZone onUpload={onFileUpload} folderId={currentFolderId ?? undefined} disabled={uploads.some((u: { status: string }) => u.status === 'uploading')} />
       </div>
 
       <div className="flex-1 overflow-auto p-4">

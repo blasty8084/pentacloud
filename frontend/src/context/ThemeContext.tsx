@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { defaultAccent, type AccentKey, type Language, t } from '../design/tokens';
 
 interface ThemeContextType {
