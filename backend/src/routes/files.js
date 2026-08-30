@@ -3,14 +3,48 @@ const multer = require('multer');
 const db = require('../db/init.js').default;
 const b2Service = require('../services/b2.js');
 const { authMiddleware } = require('../middleware/auth.js');
+const validators = require('../middleware/validate.js');
 const { v4: uuidv4 } = require('uuid');
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 * 1024 } });
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'application/pdf',
+  'text/plain', 'text/csv', 'text/markdown', 'text/html', 'text/css', 'text/javascript',
+  'application/json',
+  'application/zip', 'application/x-zip-compressed',
+  'application/x-rar-compressed',
+  'application/octet-stream',
+];
+
+function sanitizeFileName(name) {
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[\._]+|[\._]+$/g, '')
+    .substring(0, 255);
+}
+
+function validateFileType(mimetype) {
+  return ALLOWED_MIME_TYPES.includes(mimetype);
+}
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (!validateFileType(file.mimetype)) {
+      return cb(new Error(`File type ${file.mimetype} not allowed`), false);
+    }
+    cb(null, true);
+  },
+});
 
 router.use(authMiddleware);
 
-router.get('/', (req, res) => {
+router.get('/', validators.listFiles, (req, res) => {
   const { folderId, search } = req.query;
   let query = 'SELECT * FROM files WHERE user_id = ?';
   const params = [req.user.id];
@@ -39,6 +73,13 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     const { folderId } = req.body;
+    if (folderId) {
+      const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(folderId, req.user.id);
+      if (!folder) {
+        return res.status(404).json({ error: 'Folder not found' });
+      }
+    }
+
     const account = b2Service.getAccountWithMostSpace();
     if (!account) {
       return res.status(507).json({ error: 'No B2 accounts configured or all full' });
@@ -51,9 +92,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(507).json({ error: 'Selected B2 account has insufficient space' });
     }
 
+    const sanitizedName = sanitizeFileName(req.file.originalname);
     const { b2FileId, b2FileName } = await b2Service.uploadFile(
       account.id,
-      req.file.originalname,
+      sanitizedName,
       req.file.buffer,
       req.file.mimetype
     );
@@ -62,17 +104,20 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     db.prepare(
       `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(fileId, req.file.originalname, req.file.originalname, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName);
+    ).run(fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName);
 
     const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
     res.status(201).json(file);
   } catch (err) {
+    if (err.message?.includes('not allowed')) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
   }
 });
 
-router.get('/:id/download', async (req, res) => {
+router.get('/:id/download', validators.deleteFile, async (req, res) => {
   try {
     const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!file) {
@@ -90,7 +135,7 @@ router.get('/:id/download', async (req, res) => {
   }
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', validators.updateFile, (req, res) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!file) {
     return res.status(404).json({ error: 'File not found' });
@@ -101,10 +146,17 @@ router.patch('/:id', (req, res) => {
   const params = [];
 
   if (name !== undefined) {
+    const sanitizedName = sanitizeFileName(name);
     updates.push('name = ?');
-    params.push(name);
+    params.push(sanitizedName);
   }
   if (folderId !== undefined) {
+    if (folderId) {
+      const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(folderId, req.user.id);
+      if (!folder) {
+        return res.status(404).json({ error: 'Target folder not found' });
+      }
+    }
     updates.push('folder_id = ?');
     params.push(folderId || null);
   }
@@ -121,7 +173,7 @@ router.patch('/:id', (req, res) => {
   res.json(updated);
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', validators.deleteFile, async (req, res) => {
   try {
     const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!file) {

@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const db = require('../db/init.js').default;
 const { authMiddleware } = require('../middleware/auth.js');
+const validators = require('../middleware/validate.js');
 const { v4: uuidv4 } = require('uuid');
 
 const router = Router();
@@ -32,10 +33,14 @@ router.get('/tree', (req, res) => {
   res.json(roots);
 });
 
-router.post('/', (req, res) => {
+router.post('/', validators.createFolder, (req, res) => {
   const { name, parentId } = req.body;
-  if (!name) {
-    return res.status(400).json({ error: 'Folder name required' });
+
+  if (parentId) {
+    const parent = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(parentId, req.user.id);
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent folder not found' });
+    }
   }
 
   const id = uuidv4();
@@ -46,7 +51,7 @@ router.post('/', (req, res) => {
   res.status(201).json(folder);
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', validators.updateFolder, (req, res) => {
   const folder = db.prepare('SELECT * FROM folders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!folder) {
     return res.status(404).json({ error: 'Folder not found' });
@@ -64,6 +69,19 @@ router.patch('/:id', (req, res) => {
     if (parentId === folder.id) {
       return res.status(400).json({ error: 'Cannot move folder into itself' });
     }
+    if (parentId) {
+      const parent = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(parentId, req.user.id);
+      if (!parent) {
+        return res.status(404).json({ error: 'Parent folder not found' });
+      }
+      let current = folder;
+      while (current.parent_id) {
+        if (current.parent_id === parentId) {
+          return res.status(400).json({ error: 'Cannot move folder into its own descendant' });
+        }
+        current = db.prepare('SELECT * FROM folders WHERE id = ?').get(current.parent_id);
+      }
+    }
     updates.push('parent_id = ?');
     params.push(parentId || null);
   }
@@ -80,7 +98,7 @@ router.patch('/:id', (req, res) => {
   res.json(updated);
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', validators.deleteFolder, (req, res) => {
   const folder = db.prepare('SELECT * FROM folders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!folder) {
     return res.status(404).json({ error: 'Folder not found' });

@@ -3,14 +3,12 @@ const db = require('../db/init.js').default;
 const b2Service = require('../services/b2.js');
 const { v4: uuidv4 } = require('uuid');
 const { authMiddleware, optionalAuthMiddleware } = require('../middleware/auth.js');
+const validators = require('../middleware/validate.js');
 
 const router = Router();
 
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, validators.createShare, (req, res) => {
   const { fileId, expiresInHours } = req.body;
-  if (!fileId) {
-    return res.status(400).json({ error: 'File ID required' });
-  }
 
   const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(fileId, req.user.id);
   if (!file) {
@@ -27,7 +25,7 @@ router.post('/', authMiddleware, (req, res) => {
   res.json({ token, shareUrl, expiresAt });
 });
 
-router.get('/:token', optionalAuthMiddleware, async (req, res) => {
+router.get('/:token', optionalAuthMiddleware, validators.downloadShare, async (req, res) => {
   try {
     const share = db.prepare('SELECT * FROM shares WHERE token = ?').get(req.params.token);
     if (!share) {
@@ -54,7 +52,7 @@ router.get('/:token', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:token', authMiddleware, (req, res) => {
+router.delete('/:token', authMiddleware, validators.downloadShare, (req, res) => {
   const share = db.prepare('SELECT * FROM shares WHERE token = ?').get(req.params.token);
   if (!share) {
     return res.status(404).json({ error: 'Share not found' });

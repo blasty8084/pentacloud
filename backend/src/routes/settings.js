@@ -2,6 +2,7 @@ const { Router } = require('express');
 const db = require('../db/init.js').default;
 const b2Service = require('../services/b2.js');
 const { authMiddleware } = require('../middleware/auth.js');
+const validators = require('../middleware/validate.js');
 const { v4: uuidv4 } = require('uuid');
 const B2 = require('backblaze-b2');
 
@@ -16,15 +17,12 @@ router.get('/b2-accounts', (req, res) => {
   res.json(accounts);
 });
 
-router.post('/b2-accounts', async (req, res) => {
+router.post('/b2-accounts', validators.addB2Account, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
 
   const { name, keyId, applicationKey, bucketId, bucketName, bucketRegion, maxSizeGb } = req.body;
-  if (!name || !keyId || !applicationKey || !bucketId || !bucketName) {
-    return res.status(400).json({ error: 'All B2 credentials required' });
-  }
 
   const id = uuidv4();
   db.prepare(
@@ -41,7 +39,7 @@ router.post('/b2-accounts', async (req, res) => {
   res.status(201).json(account);
 });
 
-router.delete('/b2-accounts/:id', (req, res) => {
+router.delete('/b2-accounts/:id', validators.deleteB2Account, (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
