@@ -1,5 +1,5 @@
 // File controller - handles file operations
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { db, statements } from '../db/db.js';
 import { routerService } from '../services/routerService.js';
 import { sanitizeFileName } from '../middleware/uploadMiddleware.js';

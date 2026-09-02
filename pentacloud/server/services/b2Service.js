@@ -1,5 +1,5 @@
 // B2 API wrapper - handles all Backblaze B2 API calls
-import { B2 } from 'backblaze-b2';
+import B2 from 'backblaze-b2';
 
 export class B2Service {
   constructor(accountConfig) {

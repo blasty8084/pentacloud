@@ -1,6 +1,6 @@
 // Authentication controller
 import bcrypt from 'bcrypt';
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { db, statements } from '../db/db.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../middleware/authMiddleware.js';
 
