@@ -1,10 +1,10 @@
 // File controller - handles file operations
-const { v4: uuidv4 } = require('uuid');
-const { db, statements } = require('../db/db');
-const { routerService } = require('../services/routerService');
-const { sanitizeFileName } = require('../middleware/uploadMiddleware');
+import { v4: uuidv4 } from 'uuid';
+import { db, statements } from '../db/db.js';
+import { routerService } from '../services/routerService.js';
+import { sanitizeFileName } from '../middleware/uploadMiddleware.js';
 
-async function listFiles(req, res) {
+export async function listFiles(req, res) {
   try {
     const { folderId, search } = req.query;
     let files;
@@ -24,7 +24,7 @@ async function listFiles(req, res) {
   }
 }
 
-async function uploadFile(req, res) {
+export async function uploadFile(req, res) {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -66,7 +66,7 @@ async function uploadFile(req, res) {
   }
 }
 
-async function downloadFile(req, res) {
+export async function downloadFile(req, res) {
   try {
     const file = statements.getFileForDownload.get(req.params.id, req.user.id);
     if (!file) {
@@ -84,7 +84,7 @@ async function downloadFile(req, res) {
   }
 }
 
-async function updateFile(req, res) {
+export async function updateFile(req, res) {
   try {
     const file = statements.getFileForDownload.get(req.params.id, req.user.id);
     if (!file) {
@@ -116,7 +116,7 @@ async function updateFile(req, res) {
   }
 }
 
-async function deleteFile(req, res) {
+export async function deleteFile(req, res) {
   try {
     const file = statements.getFileForDownload.get(req.params.id, req.user.id);
     if (!file) {
@@ -131,5 +131,3 @@ async function deleteFile(req, res) {
     res.status(500).json({ error: 'Delete failed' });
   }
 }
-
-module.exports = { listFiles, uploadFile, downloadFile, updateFile, deleteFile };

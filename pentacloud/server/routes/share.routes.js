@@ -1,7 +1,10 @@
 // Share routes
-const { Router } = require('express');
-const { body, param, validationResult } = require('express-validator');
-const { authMiddleware, optionalAuthMiddleware } = require('../middleware/authMiddleware');
+import { Router } from 'express';
+import { body, param, validationResult } from 'express-validator';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware.js';
+import { db, statements } from '../db/db.js';
+import { routerService } from '../services/routerService.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -12,10 +15,6 @@ function handleValidation(req, res, next) {
   }
   next();
 }
-
-const { db, statements } = require('../db/db');
-const { routerService } = require('../services/routerService');
-const { v4: uuidv4 } = require('uuid');
 
 router.post('/', authMiddleware, [
   body('fileId').isUUID().withMessage('Valid file ID required'),
@@ -92,4 +91,4 @@ router.delete('/:token', authMiddleware, [
   res.json({ success: true });
 });
 
-module.exports = router;
+export default router;

@@ -1,19 +1,21 @@
 // PENTACLOUD Server - Main entry point
-const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config();
 
 const __dirname = path.resolve();
 
-const authRoutes = require('./routes/auth.routes');
-const fileRoutes = require('./routes/file.routes');
-const folderRoutes = require('./routes/folder.routes');
-const shareRoutes = require('./routes/share.routes');
-const storageRoutes = require('./routes/storage.routes');
-const { routerService } = require('./services/routerService');
+import authRoutes from './routes/auth.routes.js';
+import fileRoutes from './routes/file.routes.js';
+import folderRoutes from './routes/folder.routes.js';
+import shareRoutes from './routes/share.routes.js';
+import storageRoutes from './routes/storage.routes.js';
+import { routerService } from './services/routerService.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;

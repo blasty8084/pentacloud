@@ -1,8 +1,8 @@
 // Router service - picks which B2 account gets the file based on available space
-const { B2Service } = require('./b2Service');
-const { getB2Accounts } = require('../config/b2accounts');
+import { B2Service } from './b2Service.js';
+import { getB2Accounts } from '../config/b2accounts.js';
 
-class RouterService {
+export class RouterService {
   constructor() {
     this.accounts = [];
     this.services = new Map();
@@ -135,5 +135,4 @@ class RouterService {
   }
 }
 
-const routerService = new RouterService();
-module.exports = { routerService };
+export const routerService = new RouterService();

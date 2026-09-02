@@ -1,8 +1,8 @@
 // Authentication routes
-const { Router } = require('express');
-const { body, validationResult } = require('express-validator');
-const { signup, login, refresh, me } = require('../controllers/authController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+import { Router } from 'express';
+import { body, validationResult } from 'express-validator';
+import { signup, login, refresh, me } from '../controllers/authController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -31,4 +31,4 @@ router.post('/refresh', refresh);
 
 router.get('/me', authMiddleware, me);
 
-module.exports = router;
+export default router;

@@ -1,8 +1,8 @@
 // Upload middleware - file validation and multer configuration
-const multer = require('multer');
+import multer from 'multer';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
-const ALLOWED_MIME_TYPES = [
+export const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
+export const ALLOWED_MIME_TYPES = [
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
   'application/pdf',
   'text/plain', 'text/csv', 'text/markdown', 'text/html', 'text/css', 'text/javascript',
@@ -12,7 +12,7 @@ const ALLOWED_MIME_TYPES = [
   'application/octet-stream',
 ];
 
-function sanitizeFileName(name) {
+export function sanitizeFileName(name) {
   return name
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .replace(/\.{2,}/g, '.')
@@ -20,11 +20,11 @@ function sanitizeFileName(name) {
     .substring(0, 255);
 }
 
-function validateFileType(mimetype) {
+export function validateFileType(mimetype) {
   return ALLOWED_MIME_TYPES.includes(mimetype);
 }
 
-const upload = multer({
+export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
@@ -34,5 +34,3 @@ const upload = multer({
     cb(null, true);
   },
 });
-
-module.exports = { upload, sanitizeFileName, validateFileType, MAX_FILE_SIZE, ALLOWED_MIME_TYPES };

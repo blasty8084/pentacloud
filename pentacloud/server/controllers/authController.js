@@ -1,10 +1,10 @@
 // Authentication controller
-const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
-const { db, statements } = require('../db/db');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../middleware/authMiddleware');
+import bcrypt from 'bcrypt';
+import { v4: uuidv4 } from 'uuid';
+import { db, statements } from '../db/db.js';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../middleware/authMiddleware.js';
 
-async function signup(req, res) {
+export async function signup(req, res) {
   try {
     const { email, password, name } = req.body;
     if (!email || !password) {
@@ -38,7 +38,7 @@ async function signup(req, res) {
   }
 }
 
-async function login(req, res) {
+export async function login(req, res) {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -66,7 +66,7 @@ async function login(req, res) {
   }
 }
 
-async function refresh(req, res) {
+export async function refresh(req, res) {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
@@ -94,8 +94,6 @@ async function refresh(req, res) {
   }
 }
 
-function me(req, res) {
+export function me(req, res) {
   res.json({ user: req.user });
 }
-
-module.exports = { signup, login, refresh, me };

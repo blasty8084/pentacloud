@@ -1,7 +1,7 @@
 // Reads 5 B2 accounts from environment variables
 // Each account needs: KEY_ID, APPLICATION_KEY, BUCKET_ID, BUCKET_NAME, BUCKET_REGION
 
-function getB2Accounts() {
+export function getB2Accounts() {
   const accounts = [];
   
   for (let i = 1; i <= 5; i++) {
@@ -27,5 +27,3 @@ function getB2Accounts() {
   
   return accounts;
 }
-
-module.exports = { getB2Accounts };

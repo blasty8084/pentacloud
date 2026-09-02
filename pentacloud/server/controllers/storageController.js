@@ -1,7 +1,7 @@
 // Storage controller - handles storage stats and dashboard
-const { routerService } = require('../services/routerService');
+import { routerService } from '../services/routerService.js';
 
-function getStorageStats(req, res) {
+export function getStorageStats(req, res) {
   try {
     const stats = routerService.getTotalStats();
     res.json(stats);
@@ -11,16 +11,13 @@ function getStorageStats(req, res) {
   }
 }
 
-function refreshStorageStats(req, res) {
+export async function refreshStorageStats(req, res) {
   try {
-    routerService.updateUsageStats().then(() => {
-      const stats = routerService.getTotalStats();
-      res.json(stats);
-    });
+    await routerService.updateUsageStats();
+    const stats = routerService.getTotalStats();
+    res.json(stats);
   } catch (err) {
     console.error('Refresh storage stats error:', err);
     res.status(500).json({ error: 'Failed to refresh storage stats' });
   }
 }
-
-module.exports = { getStorageStats, refreshStorageStats };

@@ -1,7 +1,9 @@
 // Folder routes
-const { Router } = require('express');
-const { body, param, validationResult } = require('express-validator');
-const { authMiddleware } = require('../middleware/authMiddleware');
+import { Router } from 'express';
+import { body, param, validationResult } from 'express-validator';
+import { authMiddleware } from '../middleware/authMiddleware.js';
+import { db, statements } from '../db/db.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 router.use(authMiddleware);
@@ -13,9 +15,6 @@ function handleValidation(req, res, next) {
   }
   next();
 }
-
-const { db, statements } = require('../db/db');
-const { v4: uuidv4 } = require('uuid');
 
 router.get('/', (req, res) => {
   const folders = statements.getFoldersByUser.all(req.user.id);
@@ -126,4 +125,4 @@ router.delete('/:id', [
   res.json({ success: true });
 });
 
-module.exports = router;
+export default router;

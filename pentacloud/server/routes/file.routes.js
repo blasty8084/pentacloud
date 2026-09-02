@@ -1,9 +1,9 @@
 // File routes
-const { Router } = require('express');
-const { body, param, query, validationResult } = require('express-validator');
-const { listFiles, uploadFile, downloadFile, updateFile, deleteFile } = require('../controllers/fileController');
-const { authMiddleware } = require('../middleware/authMiddleware');
-const { upload } = require('../middleware/uploadMiddleware');
+import { Router } from 'express';
+import { body, param, query, validationResult } from 'express-validator';
+import { listFiles, uploadFile, downloadFile, updateFile, deleteFile } from '../controllers/fileController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
+import { upload } from '../middleware/uploadMiddleware.js';
 
 const router = Router();
 
@@ -42,4 +42,4 @@ router.delete('/:id', [
   handleValidation
 ], deleteFile);
 
-module.exports = router;
+export default router;

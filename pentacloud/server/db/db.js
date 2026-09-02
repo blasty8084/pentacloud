@@ -1,8 +1,8 @@
 // Database connection and query helpers
-const Database = require('better-sqlite3');
-const { resolve } = require('path');
-const { fileURLToPath } = require('url');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, '..');
@@ -26,7 +26,7 @@ db.exec(schema);
 console.log('Database initialized at', dbPath);
 
 // Prepared statements for common queries
-const statements = {
+export const statements = {
   // Users
   createUser: db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)'),
   getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
@@ -63,4 +63,5 @@ const statements = {
   getFileCountByAccount: db.prepare('SELECT b2_account_index, COUNT(*) as count, SUM(size) as total_size FROM files GROUP BY b2_account_index'),
 };
 
-module.exports = { db, statements };
+export const db = db;
+export default db;

@@ -1,7 +1,7 @@
 // B2 API wrapper - handles all Backblaze B2 API calls
-const { B2 } = require('backblaze-b2');
+import { B2 } from 'backblaze-b2';
 
-class B2Service {
+export class B2Service {
   constructor(accountConfig) {
     this.accountConfig = accountConfig;
     this.b2 = new B2({
@@ -70,5 +70,3 @@ class B2Service {
     return totalSize;
   }
 }
-
-module.exports = { B2Service };
