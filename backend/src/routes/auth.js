@@ -1,15 +1,15 @@
-const { Router } = require('express');
-const bcrypt = require('bcrypt');
-const db = require('../db/init.js').default;
-const {
+import { Router } from 'express';
+import bcrypt from 'bcrypt';
+import db from '../db/init.js';
+import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
   authMiddleware,
   setTokenCookies,
   clearTokenCookies,
-} = require('../middleware/auth.js');
-const { v4: uuidv4 } = require('uuid');
+} from '../middleware/auth.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -116,4 +116,4 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json({ user: req.user });
 });
 
-module.exports = router;
+export default router;

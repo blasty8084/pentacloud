@@ -1,21 +1,23 @@
-const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
-const { resolve } = require('path');
-const { fileURLToPath } = require('url');
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, '..');
 
-const authRoutes = require('./routes/auth.js');
-const fileRoutes = require('./routes/files.js');
-const folderRoutes = require('./routes/folders.js');
-const storageRoutes = require('./routes/storage.js');
-const shareRoutes = require('./routes/shares.js');
-const settingsRoutes = require('./routes/settings.js');
-const b2Service = require('./services/b2.js');
+import authRoutes from './routes/auth.js';
+import fileRoutes from './routes/files.js';
+import folderRoutes from './routes/folders.js';
+import storageRoutes from './routes/storage.js';
+import shareRoutes from './routes/shares.js';
+import settingsRoutes from './routes/settings.js';
+import b2Service from './services/b2.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
