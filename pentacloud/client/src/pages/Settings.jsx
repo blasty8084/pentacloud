@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { Settings, User, Shield, LogOut, Plus, Trash2, Database, Key, HardDrive, Globe, AlertCircle } from 'lucide-react'
+import { Settings, User, Shield, LogOut, Plus, Trash2, Database, Key, HardDrive, Globe, AlertCircle, X } from 'lucide-react'
 
 export default function Settings() {
   const { user, logout } = useAuth()
@@ -18,11 +18,13 @@ export default function Settings() {
   })
   const [adding, setAdding] = useState(false)
 
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+
   const fetchAccounts = async () => {
     if (user?.role !== 'admin') return
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/settings/b2-accounts`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+      const res = await fetch(apiBase + '/settings/b2-accounts', {
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('accessToken') }
       })
       if (res.ok) {
         const data = await res.json()
@@ -39,11 +41,11 @@ export default function Settings() {
     e.preventDefault()
     setAdding(true)
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/settings/b2-accounts`, {
+      const res = await fetch(apiBase + '/settings/b2-accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+          Authorization: 'Bearer ' + localStorage.getItem('accessToken')
         },
         body: JSON.stringify(formData)
       })
@@ -62,9 +64,9 @@ export default function Settings() {
   const handleDeleteAccount = async (id) => {
     if (!confirm('Delete this B2 account? Files stored here will become inaccessible.')) return
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/settings/b2-accounts/${id}`, {
+      const res = await fetch(apiBase + '/settings/b2-accounts/' + id, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('accessToken') }
       })
       if (res.ok) fetchAccounts()
     } catch (err) {
@@ -89,15 +91,15 @@ export default function Settings() {
             <User className="w-5 h-5" />
             Account
           </h2>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+          <div className="bg-slate-800 opacity-50 border border-slate-700 rounded-xl p-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-blue-500 opacity-10 flex items-center justify-center">
                 <User className="w-8 h-8 text-blue-400" />
               </div>
               <div>
                 <p className="text-lg font-medium text-white">{user?.name || 'Unnamed User'}</p>
                 <p className="text-slate-400">{user?.email}</p>
-                <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/20 text-blue-400 capitalize">
+                <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500 opacity-20 text-blue-400 capitalize">
                   {user?.role}
                 </span>
               </div>
@@ -124,11 +126,11 @@ export default function Settings() {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-20 bg-slate-800/50 border border-slate-700 rounded-xl animate-pulse" />
+                  <div key={i} className="h-20 bg-slate-800 opacity-50 border border-slate-700 rounded-xl animate-pulse" />
                 ))}
               </div>
             ) : accounts.length === 0 ? (
-              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 text-center">
+              <div className="bg-slate-800 opacity-50 border border-slate-700 rounded-xl p-6 text-center">
                 <Database className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                 <p className="text-slate-400">No B2 accounts configured</p>
                 <p className="text-sm text-slate-500 mt-1">Add your first account to start storing files</p>
@@ -143,10 +145,10 @@ export default function Settings() {
             ) : (
               <div className="space-y-4">
                 {accounts.map(account => (
-                  <div key={account.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                  <div key={account.id} className="bg-slate-800 opacity-50 border border-slate-700 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-lg bg-green-500 opacity-10 flex items-center justify-center">
                           <Database className="w-6 h-6 text-green-400" />
                         </div>
                         <div>
@@ -159,7 +161,7 @@ export default function Settings() {
                       </div>
                       <button
                         onClick={() => handleDeleteAccount(account.id)}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 opacity-50 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -176,7 +178,7 @@ export default function Settings() {
             <Shield className="w-5 h-5" />
             Security
           </h2>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+          <div className="bg-slate-800 opacity-50 border border-slate-700 rounded-xl p-6">
             <p className="text-slate-400">Session management and security settings would go here.</p>
           </div>
         </section>
@@ -195,14 +197,14 @@ export default function Settings() {
               Sign Out
             </button>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 mt-4">
+          <div className="bg-slate-800 opacity-50 border border-slate-700 rounded-xl p-6 mt-4">
             <p className="text-slate-400">Sign out of your PENTACLOUD account.</p>
           </div>
         </section>
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black opacity-50">
           <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-lg animate-fadeIn">
             <div className="flex items-center justify-between p-4 border-b border-slate-700">
               <h2 className="text-lg font-semibold text-white">Add B2 Account</h2>
@@ -294,6 +296,7 @@ export default function Settings() {
             </form>
           </div>
         )}
+      </div>
     </div>
   )
 }

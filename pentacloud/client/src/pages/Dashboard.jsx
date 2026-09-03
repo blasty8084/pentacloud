@@ -9,6 +9,17 @@ import StorageMeter from '../components/StorageMeter'
 import ShareModal from '../components/ShareModal'
 import { Folder, ChevronRight, Search, Upload, MoreVertical, Download, Edit, Trash2, Share2, Eye, FileText, Image, File, Folder as FolderIcon, Settings, BarChart2, Home, Share, LogOut, X, Plus } from 'lucide-react'
 
+// Helper to build className without template literal slash issues
+const cn = (...classes) => classes.filter(Boolean).join(' ')
+
+const FOLDER_BASE = 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors'
+const FOLDER_SEL = FOLDER_BASE + ' bg-blue-500 opacity-20 text-blue-400'
+const FOLDER_UNSEL = FOLDER_BASE + ' text-slate-300 hover:bg-slate-700 opacity-50'
+const ROOT_SEL = 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors bg-blue-500 opacity-20 text-blue-400'
+const ROOT_UNSEL = 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors text-slate-300 hover:bg-slate-700 opacity-50'
+const CHEVRON_BASE = 'w-4 h-4 flex-shrink-0 transition-transform'
+const CHEVRON_ROT = CHEVRON_BASE + ' rotate-90'
+
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -103,7 +114,7 @@ export default function Dashboard() {
   }
 
   const handlePreview = (file) => {
-    navigate(`/preview/${file.id}`)
+    navigate('/preview/' + file.id)
   }
 
   const handleRename = async (id, name, type) => {
@@ -135,7 +146,7 @@ export default function Dashboard() {
   }
 
   const handleDelete = async (id, type) => {
-    if (!confirm(`Are you sure you want to delete this ${type}?`)) return
+    if (!confirm('Are you sure you want to delete this ' + type + '?')) return
     try {
       if (type === 'file') {
         await filesApi.delete(id)
@@ -187,8 +198,8 @@ export default function Dashboard() {
         storageStats={storageStats}
       />
 
-      <main className={`flex-1 flex flex-col ${sidebarCollapsed ? 'ml-16' : 'ml-64'} min-w-0`}>
-        <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-sm border-b border-slate-800">
+      <main className={sidebarCollapsed ? 'ml-16 flex-1 flex flex-col min-w-0' : 'ml-64 flex-1 flex flex-col min-w-0'}>
+        <header className="sticky top-0 z-30 bg-slate-900 opacity-80 backdrop-blur-sm border-b border-slate-800">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6">
             <div className="flex items-center gap-4">
               {!sidebarCollapsed && (
@@ -321,7 +332,7 @@ export default function Dashboard() {
 
 function RenameModal({ item, type, value, onChange, onSubmit, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black opacity-50">
       <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-md animate-fadeIn">
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <h2 className="text-lg font-semibold text-white">Rename {type}</h2>
@@ -360,39 +371,51 @@ function MoveModal({ item, type, folders, currentFolderId, onSubmit, onClose }) 
     })
   }
 
-  const renderFolders = (folderList, depth = 0) => (
-    <div className="space-y-1">
-      {folderList.map(folder => (
-        <div key={folder.id}>
-          {folder.id !== item.id && (
-            <button
-              onClick={() => setSelectedFolderId(folder.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                selectedFolderId === folder.id
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : 'text-slate-300 hover:bg-slate-700/50'
-              }`}
-              style={{ paddingLeft: `${12 + depth * 16}px` }}
-            >
-              {folder.children && folder.children.length > 0 && (
-                <ChevronRight
-                  className={`w-4 h-4 flex-shrink-0 transition-transform ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleExpand(folder.id) }}
-                />
-              )}
-              <FolderIcon className="w-4 h-4 flex-shrink-0 text-yellow-400" />
-              <span className="truncate">{folder.name}</span>
-            </button>
-          )}
-          {expandedFolders.has(folder.id) && folder.children && (
-            <div>{renderFolders(folder.children, depth + 1)}</div>
-          )}
+  const renderFolders = (folderList, depth) => {
+    const indent = 12 + depth * 16 + 'px'
+    return (
+      <div className="space-y-1">
+        {folderList.map(folder => (
+          <div key={folder.id}>
+            {folder.id !== item.id && (
+              <button
+                onClick={() => setSelectedFolderId(folder.id)}
+                className={selectedFolderId === folder.id ? 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors bg-blue-500 opacity-20 text-blue-400' : 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors text-slate-300 hover:bg-slate-700 opacity-50'}
+                style={{ paddingLeft: 12 + depth * 16 + 'px' }}
+              >
+                {folder.children && folder.children.length > 0 && (
+                  <ChevronRight
+                    className={'w-4 h-4 flex-shrink-0 transition-transform ' + (expandedFolders.has(folder.id) ? 'rotate-90' : '')}
+                    onClick={(e) => { e.stopPropagation(); toggleExpand(folder.id) }}
+                  />
+                )}
+                <FolderIcon className="w-4 h-4 flex-shrink-0 text-yellow-400" />
+                <span className="truncate">{folder.name}</span>
+              </button>
+            )}
+            {expandedFolders.has(folder.id) && folder.children && (
+              <div>{renderFolders(folder.children, depth + 1)}</div>
+            )}
+          </div>
         </div>
-    </div>
-  )
+    )
+  }
+
+  const toggleExpand = (folderId) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(folderId)) next.delete(folderId)
+      else next.add(folderId)
+      return next
+    })
+  }
+
+  const getRootClass = () => selectedFolderId === null
+    ? 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors bg-blue-500 opacity-20 text-blue-400'
+    : 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors text-slate-300 hover:bg-slate-700 opacity-50'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black opacity-50">
       <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-md animate-fadeIn">
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <h2 className="text-lg font-semibold text-white">Move to Folder</h2>
@@ -405,11 +428,7 @@ function MoveModal({ item, type, folders, currentFolderId, onSubmit, onClose }) 
           <div className="max-h-64 overflow-y-auto border border-slate-700 rounded-lg p-2">
             <button
               onClick={() => setSelectedFolderId(null)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                selectedFolderId === null
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : 'text-slate-300 hover:bg-slate-700/50'
-              }`}
+              className={selectedFolderId === null ? 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors bg-blue-500 opacity-20 text-blue-400' : 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors text-slate-300 hover:bg-slate-700 opacity-50'}
             >
               <FolderIcon className="w-4 h-4" />
               <span>Root (All Files)</span>
