@@ -1,9 +1,9 @@
-const { Router } = require('express');
-const db = require('../db/init.js').default;
-const b2Service = require('../services/b2.js');
-const { v4: uuidv4 } = require('uuid');
-const { authMiddleware, optionalAuthMiddleware } = require('../middleware/auth.js');
-const validators = require('../middleware/validate.js');
+import { Router } from 'express';
+import db from '../db/init.js';
+import b2Service from '../services/b2.js';
+import { v4 as uuidv4 } from 'uuid';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.js';
+import validators from '../middleware/validate.js';
 
 const router = Router();
 
@@ -67,4 +67,4 @@ router.delete('/:token', authMiddleware, validators.downloadShare, (req, res) =>
   res.json({ success: true });
 });
 
-module.exports = router;
+export default router;

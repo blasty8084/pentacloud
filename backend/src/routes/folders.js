@@ -1,8 +1,8 @@
-const { Router } = require('express');
-const db = require('../db/init.js').default;
-const { authMiddleware } = require('../middleware/auth.js');
-const validators = require('../middleware/validate.js');
-const { v4: uuidv4 } = require('uuid');
+import { Router } from 'express';
+import db from '../db/init.js';
+import { authMiddleware } from '../middleware/auth.js';
+import validators from '../middleware/validate.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 router.use(authMiddleware);
@@ -108,4 +108,4 @@ router.delete('/:id', validators.deleteFolder, (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = router;
+export default router;

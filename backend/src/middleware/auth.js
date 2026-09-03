@@ -1,12 +1,12 @@
-const jwt = require('jsonwebtoken');
-const db = require('../db/init.js').default;
+import jwt from 'jsonwebtoken';
+import db from '../db/init.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'pentacloud-secret-change-in-production';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || JWT_SECRET + '-refresh';
 const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m';
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
-function generateAccessToken(user) {
+export function generateAccessToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, type: 'access' },
     JWT_SECRET,
@@ -14,7 +14,7 @@ function generateAccessToken(user) {
   );
 }
 
-function generateRefreshToken(user) {
+export function generateRefreshToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, type: 'refresh' },
     REFRESH_SECRET,
@@ -22,7 +22,7 @@ function generateRefreshToken(user) {
   );
 }
 
-function verifyAccessToken(token) {
+export function verifyAccessToken(token) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     if (payload.type !== 'access') return null;
@@ -32,7 +32,7 @@ function verifyAccessToken(token) {
   }
 }
 
-function verifyRefreshToken(token) {
+export function verifyRefreshToken(token) {
   try {
     const payload = jwt.verify(token, REFRESH_SECRET);
     if (payload.type !== 'refresh') return null;
@@ -42,7 +42,7 @@ function verifyRefreshToken(token) {
   }
 }
 
-function authMiddleware(req, res, next) {
+export function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -63,7 +63,7 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-function optionalAuthMiddleware(req, res, next) {
+export function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
@@ -76,7 +76,7 @@ function optionalAuthMiddleware(req, res, next) {
   next();
 }
 
-function setTokenCookies(res, accessToken, refreshToken) {
+export function setTokenCookies(res, accessToken, refreshToken) {
   const isProd = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: true,
@@ -96,7 +96,7 @@ function setTokenCookies(res, accessToken, refreshToken) {
   });
 }
 
-function clearTokenCookies(res) {
+export function clearTokenCookies(res) {
   const isProd = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: true,
@@ -108,16 +108,3 @@ function clearTokenCookies(res) {
   res.clearCookie('accessToken', cookieOptions);
   res.clearCookie('refreshToken', cookieOptions);
 }
-
-module.exports = {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-  authMiddleware,
-  optionalAuthMiddleware,
-  setTokenCookies,
-  clearTokenCookies,
-  ACCESS_TOKEN_EXPIRY,
-  REFRESH_TOKEN_EXPIRY,
-};

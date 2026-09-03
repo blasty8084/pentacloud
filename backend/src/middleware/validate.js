@@ -1,4 +1,4 @@
-const { body, query, param, validationResult } = require('express-validator');
+import { body, query, param, validationResult } from 'express-validator';
 
 function handleValidationErrors(req, res, next) {
   const errors = validationResult(req);
@@ -86,4 +86,4 @@ const validators = {
   ],
 };
 
-module.exports = validators;
+export default validators;

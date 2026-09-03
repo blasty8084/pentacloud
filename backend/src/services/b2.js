@@ -1,8 +1,8 @@
-const B2 = require('backblaze-b2');
-const db = require('../db/init.js').default;
-const { v4: uuidv4 } = require('uuid');
+import B2 from 'backblaze-b2';
+import db from '../db/init.js';
+import { v4 as uuidv4 } from 'uuid';
 
-class B2Service {
+export class B2Service {
   constructor() {
     this.clients = new Map();
     this.accounts = [];
@@ -119,5 +119,4 @@ class B2Service {
   }
 }
 
-const b2Service = new B2Service();
-module.exports = b2Service;
+export const b2Service = new B2Service();

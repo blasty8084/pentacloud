@@ -1,7 +1,7 @@
-const { Router } = require('express');
-const db = require('../db/init.js').default;
-const b2Service = require('../services/b2.js');
-const { authMiddleware } = require('../middleware/auth.js');
+import { Router } from 'express';
+import db from '../db/init.js';
+import b2Service from '../services/b2.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -16,4 +16,4 @@ router.get('/stats', (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const { Router } = require('express');
-const multer = require('multer');
-const db = require('../db/init.js').default;
-const b2Service = require('../services/b2.js');
-const { authMiddleware } = require('../middleware/auth.js');
-const validators = require('../middleware/validate.js');
-const { v4: uuidv4 } = require('uuid');
+import { Router } from 'express';
+import multer from 'multer';
+import db from '../db/init.js';
+import b2Service from '../services/b2.js';
+import { authMiddleware } from '../middleware/auth.js';
+import validators from '../middleware/validate.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -189,4 +189,4 @@ router.delete('/:id', validators.deleteFile, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
