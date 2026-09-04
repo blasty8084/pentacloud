@@ -120,3 +120,4 @@ export class B2Service {
 }
 
 export const b2Service = new B2Service();
+export default b2Service;
