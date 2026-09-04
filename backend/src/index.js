@@ -17,7 +17,7 @@ import folderRoutes from './routes/folders.js';
 import storageRoutes from './routes/storage.js';
 import shareRoutes from './routes/shares.js';
 import settingsRoutes from './routes/settings.js';
-import b2Service from './services/b2.js';
+import { b2Service as B2ServiceInstance } from './services/b2.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -62,7 +62,7 @@ app.use('/api/settings', settingsRoutes);
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 async function start() {
-  await b2Service.initialize();
+  await B2ServiceInstance.initialize();
   app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
   });
