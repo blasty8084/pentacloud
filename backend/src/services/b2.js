@@ -10,15 +10,23 @@ export class B2Service {
 
   async initialize() {
     this.accounts = db.prepare('SELECT * FROM b2_accounts').all();
+    let initializedCount = 0;
+    
     for (const account of this.accounts) {
       const b2 = new B2({
         applicationKeyId: account.key_id,
         applicationKey: account.application_key,
       });
-      await b2.authorize();
-      this.clients.set(account.id, { b2, account });
+      try {
+        await b2.authorize();
+        this.clients.set(account.id, { b2, account });
+        initializedCount++;
+        console.log(`B2 account "${account.name}" (${account.id}) initialized`);
+      } catch (err) {
+        console.warn(`Failed to initialize B2 account "${account.name}" (${account.id}): ${err.message}`);
+      }
     }
-    console.log(`Initialized ${this.accounts.length} B2 accounts`);
+    console.log(`Initialized ${initializedCount}/${this.accounts.length} B2 accounts`);
   }
 
   getAccountWithMostSpace() {
