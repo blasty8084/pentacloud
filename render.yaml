@@ -1,0 +1,79 @@
+# Render configuration for PENTACLOUD Backend
+# This file defines a Web Service with persistent disk for SQLite database
+
+services:
+  - type: web
+    name: pentacloud-api
+    runtime: node
+    plan: free
+    buildCommand: bun install
+    startCommand: bun src/index.js
+    # Bun is not natively supported on Render, so we use Node with bun
+    # Alternatively, use Docker for full Bun support
+    
+    # Environment variables (set in Render dashboard, not here)
+    # envVars:
+    #   - key: NODE_ENV
+    #     value: production
+    #   - key: PORT
+    #     value: "10000"
+    #   - key: JWT_SECRET
+    #     sync: false
+    #   - key: FRONTEND_URL
+    #     value: https://your-frontend.vercel.app
+    #   - key: B2_1_KEY_ID
+    #     sync: false
+    #   - key: B2_1_APPLICATION_KEY
+    #     sync: false
+    #   - key: B2_1_BUCKET_ID
+    #     sync: false
+    #   - key: B2_1_BUCKET_NAME
+    #     sync: false
+    #   - key: B2_1_BUCKET_REGION
+    #     sync: false
+    #   - key: B2_2_KEY_ID
+    #     sync: false
+    #   - key: B2_2_APPLICATION_KEY
+    #     sync: false
+    #   - key: B2_2_BUCKET_ID
+    #     sync: false
+    #   - key: B2_2_BUCKET_NAME
+    #     sync: false
+    #   - key: B2_2_BUCKET_REGION
+    #     sync: false
+    #   - key: B2_3_KEY_ID
+    #     sync: false
+    #   - key: B2_3_APPLICATION_KEY
+    #     sync: false
+    #   - key: B2_3_BUCKET_ID
+    #     sync: false
+    #   - key: B2_3_BUCKET_NAME
+    #     sync: false
+    #   - key: B2_3_BUCKET_REGION
+    #     sync: false
+    #   - key: B2_4_KEY_ID
+    #     sync: false
+    #   - key: B2_4_APPLICATION_KEY
+    #     sync: false
+    #   - key: B2_4_BUCKET_ID
+    #     sync: false
+    #   - key: B2_4_BUCKET_NAME
+    #     sync: false
+    #   - key: B2_4_BUCKET_REGION
+    #     sync: false
+    #   - key: B2_5_KEY_ID
+    #     sync: false
+    #   - key: B2_5_APPLICATION_KEY
+    #     sync: false
+    #   - key: B2_5_BUCKET_ID
+    #     sync: false
+    #   - key: B2_5_BUCKET_NAME
+    #     sync: false
+    #   - key: B2_5_BUCKET_REGION
+    #     sync: false
+    
+    # Persistent disk for SQLite database
+    disk:
+      name: pentacloud-data
+      mountPath: /app/backend/data
+      sizeGB: 1
