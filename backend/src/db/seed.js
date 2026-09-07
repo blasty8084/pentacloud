@@ -1,6 +1,5 @@
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
-import Database from 'bun:sqlite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,6 +8,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, '..');
 
 const dbPath = resolve(__dirname, '../../data/pentacloud.db');
+
+// Detect runtime and use appropriate SQLite driver
+const isBun = typeof Bun !== 'undefined';
+let Database;
+if (isBun) {
+  // Use Bun's built-in sqlite
+  const bunSqlite = await import('bun:sqlite');
+  Database = bunSqlite.default;
+} else {
+  // Use better-sqlite3 for Node.js
+  const betterSqlite3 = await import('better-sqlite3');
+  Database = betterSqlite3.default;
+}
+
 const db = new Database(dbPath);
 
 for (let i = 1; i <= 5; i++) {
