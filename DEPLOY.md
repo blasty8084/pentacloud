@@ -54,30 +54,25 @@ Go to **Environment** tab and add:
 | `JWT_SECRET` | `your-secure-random-string` | Generate: `openssl rand -base64 32` |
 | `FRONTEND_URL` | `https://your-frontend.vercel.app` | Your Vercel URL |
 | `B2_1_KEY_ID` | `0058ac404bff8180000000001` | From B2 Console |
-| `B2_1_APPLICATION_KEY` | `K005cniuoR6q/zwkty3xvm9RI5QsViQ` | From B2 Console |
-| `B2_1_BUCKET_ID` | `b8ba6ca450842b2faf080118` | From B2 Console |
+| `B2_1_APP_KEY` | `K005cniuoR6q/zwkty3xvm9RI5QsViQ` | From B2 Console |
 | `B2_1_BUCKET_NAME` | `pentacloudv1` | From B2 Console |
-| `B2_1_BUCKET_REGION` | `us-east-005` | e.g., `us-east-005` |
+| `B2_1_BUCKET_ENDPOINT` | `s3.us-east-005.backblazeb2.com` | Full S3 endpoint |
 | `B2_2_KEY_ID` | `004e19d00e1826c0000000003` | |
-| `B2_2_APPLICATION_KEY` | `K004Ojbw8jxgB/63TV9bDM0VIjz7F38` | |
-| `B2_2_BUCKET_ID` | `5ee1f96d60002e21a802061c` | |
+| `B2_2_APP_KEY` | `K004Ojbw8jxgB/63TV9bDM0VIjz7F38` | |
 | `B2_2_BUCKET_NAME` | `pentacloudv2` | |
-| `B2_2_BUCKET_REGION` | `us-west-004` | |
+| `B2_2_BUCKET_ENDPOINT` | `s3.us-west-004.backblazeb2.com` | |
 | `B2_3_KEY_ID` | `005aa7e39f8efbd0000000001` | |
-| `B2_3_APPLICATION_KEY` | `K0054CeXjCMbgMsHhmkFvqRY9r20S1g` | |
-| `B2_3_BUCKET_ID` | `2a5a37de93492f28ae0f0b1d` | |
+| `B2_3_APP_KEY` | `K0054CeXjCMbgMsHhmkFvqRY9r20S1g` | |
 | `B2_3_BUCKET_NAME` | `pentacloudv3` | |
-| `B2_3_BUCKET_REGION` | `us-east-005` | |
+| `B2_3_BUCKET_ENDPOINT` | `s3.us-east-005.backblazeb2.com` | |
 | `B2_4_KEY_ID` | `0053cd8bbccf0b70000000001` | |
-| `B2_4_APPLICATION_KEY` | `K005Y/rrg/nmr+9ttaov4gdb2aQ43pl` | |
-| `B2_4_BUCKET_ID` | `835ced089bcb2c2caf000b17` | |
+| `B2_4_APP_KEY` | `K005Y/rrg/nmr+9ttaov4gdb2aQ43pl` | |
 | `B2_4_BUCKET_NAME` | `pentacloudv4` | |
-| `B2_4_BUCKET_REGION` | `us-east-005` | |
+| `B2_4_BUCKET_ENDPOINT` | `s3.us-east-005.backblazeb2.com` | |
 | `B2_5_KEY_ID` | `00556e3646281b50000000001` | |
-| `B2_5_APPLICATION_KEY` | `K005TKQoqc5TCG5OTAp/h/pGmyT4cEw` | |
-| `B2_5_BUCKET_ID` | `0536be43a6142622a8010b15` | |
+| `B2_5_APP_KEY` | `K005TKQoqc5TCG5OTAp/h/pGmyT4cEw` | |
 | `B2_5_BUCKET_NAME` | `pentacloudV5` | |
-| `B2_5_BUCKET_REGION` | `us-east-005` | |
+| `B2_5_BUCKET_ENDPOINT` | `s3.us-east-005.backblazeb2.com` | |
 | `LOG_LEVEL` | `info` | Optional |
 
 ---
@@ -117,38 +112,33 @@ FRONTEND_URL=https://your-frontend.vercel.app
 
 # B2 Account 1
 B2_1_KEY_ID=0058ac404bff8180000000001
-B2_1_APPLICATION_KEY=K005cniuoR6q/zwkty3xvm9RI5QsViQ
-B2_1_BUCKET_ID=b8ba6ca450842b2faf080118
+B2_1_APP_KEY=K005cniuoR6q/zwkty3xvm9RI5QsViQ
 B2_1_BUCKET_NAME=pentacloudv1
-B2_1_BUCKET_REGION=us-east-005
+B2_1_BUCKET_ENDPOINT=s3.us-east-005.backblazeb2.com
 
 # B2 Account 2
 B2_2_KEY_ID=004e19d00e1826c0000000003
-B2_2_APPLICATION_KEY=K004Ojbw8jxgB/63TV9bDM0VIjz7F38
-B2_2_BUCKET_ID=5ee1f96d60002e21a802061c
+B2_2_APP_KEY=K004Ojbw8jxgB/63TV9bDM0VIjz7F38
 B2_2_BUCKET_NAME=pentacloudv2
-B2_2_BUCKET_REGION=us-west-004
+B2_2_BUCKET_ENDPOINT=s3.us-west-004.backblazeb2.com
 
 # B2 Account 3
 B2_3_KEY_ID=005aa7e39f8efbd0000000001
-B2_3_APPLICATION_KEY=K0054CeXjCMbgMsHhmkFvqRY9r20S1g
-B2_3_BUCKET_ID=2a5a37de93492f28ae0f0b1d
+B2_3_APP_KEY=K0054CeXjCMbgMsHhmkFvqRY9r20S1g
 B2_3_BUCKET_NAME=pentacloudv3
-B2_3_BUCKET_REGION=us-east-005
+B2_3_BUCKET_ENDPOINT=s3.us-east-005.backblazeb2.com
 
 # B2 Account 4
 B2_4_KEY_ID=0053cd8bbccf0b70000000001
-B2_4_APPLICATION_KEY=K005Y/rrg/nmr+9ttaov4gdb2aQ43pl
-B2_4_BUCKET_ID=835ced089bcb2c2caf000b17
+B2_4_APP_KEY=K005Y/rrg/nmr+9ttaov4gdb2aQ43pl
 B2_4_BUCKET_NAME=pentacloudv4
-B2_4_BUCKET_REGION=us-east-005
+B2_4_BUCKET_ENDPOINT=s3.us-east-005.backblazeb2.com
 
 # B2 Account 5
 B2_5_KEY_ID=00556e3646281b50000000001
-B2_5_APPLICATION_KEY=K005TKQoqc5TCG5OTAp/h/pGmyT4cEw
-B2_5_BUCKET_ID=0536be43a6142622a8010b15
+B2_5_APP_KEY=K005TKQoqc5TCG5OTAp/h/pGmyT4cEw
 B2_5_BUCKET_NAME=pentacloudV5
-B2_5_BUCKET_REGION=us-east-005
+B2_5_BUCKET_ENDPOINT=s3.us-east-005.backblazeb2.com
 ```
 
 ### Vercel (Frontend) - Set in Vercel Dashboard
@@ -197,7 +187,7 @@ cd frontend && bun run dev
 
 ---
 
-## 7. Security Notes
+## 6. Security Notes
 
 - **Never commit** `.env`, `.env.*` (except `.env.example`)
 - All secrets stored in platform dashboards (Render/Vercel)

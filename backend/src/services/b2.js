@@ -8,6 +8,13 @@ export class B2Service {
     this.accounts = [];
   }
 
+  // Parse endpoint to extract region if needed
+  parseEndpoint(endpoint) {
+    // Example: s3.us-east-005.backblazeb2.com -> us-east-005
+    const match = endpoint.match(/s3\.([^.]+)\.backblazeb2\.com/);
+    return match ? match[1] : 'us-east-005';
+  }
+
   async initialize() {
     this.accounts = db.prepare('SELECT * FROM b2_accounts').all();
     let initializedCount = 0;
@@ -15,10 +22,13 @@ export class B2Service {
     for (const account of this.accounts) {
       const b2 = new B2({
         applicationKeyId: account.key_id,
-        applicationKey: account.application_key,
+        applicationKey: account.app_key,
       });
       try {
         await b2.authorize();
+        // Store the endpoint and parsed region with the account
+        account.bucket_endpoint = account.bucket_endpoint;
+        account.region = this.parseEndpoint(account.bucket_endpoint);
         this.clients.set(account.id, { b2, account });
         initializedCount++;
         console.log(`B2 account "${account.name}" (${account.id}) initialized`);
@@ -53,7 +63,7 @@ export class B2Service {
     if (!client) throw new Error(`B2 account ${accountId} not found`);
 
     const { b2, account } = client;
-    const uploadUrlResponse = await b2.getUploadUrl({ bucketId: account.bucket_id });
+    const uploadUrlResponse = await b2.getUploadUrl({ bucketId: account.bucket_name });
     const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
 
     const b2FileName = `${uuidv4()}-${fileName}`;
@@ -117,6 +127,7 @@ export class B2Service {
         id: account.id,
         name: account.name,
         bucketName: account.bucket_name,
+        bucketEndpoint: account.bucket_endpoint,
         used,
         max: maxBytes,
         free: maxBytes - used,

@@ -38,10 +38,9 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     key_id TEXT NOT NULL,
-    application_key TEXT NOT NULL,
-    bucket_id TEXT NOT NULL,
+    app_key TEXT NOT NULL,
     bucket_name TEXT NOT NULL,
-    bucket_region TEXT,
+    bucket_endpoint TEXT NOT NULL,
     max_size_gb INTEGER DEFAULT 10,
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   );
