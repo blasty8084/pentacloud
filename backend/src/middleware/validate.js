@@ -72,10 +72,9 @@ const validators = {
   addB2Account: [
     body('name').isString().trim().escape().isLength({ min: 1, max: 100 }).withMessage('Account name required'),
     body('keyId').isString().trim().notEmpty().withMessage('Key ID required'),
-    body('applicationKey').isString().trim().notEmpty().withMessage('Application key required'),
-    body('bucketId').isString().trim().notEmpty().withMessage('Bucket ID required'),
+    body('appKey').isString().trim().notEmpty().withMessage('Application key required'),
     body('bucketName').isString().trim().notEmpty().withMessage('Bucket name required'),
-    body('bucketRegion').optional().isString().trim().isIn(['us-west-000', 'us-east-001', 'eu-central-003']).withMessage('Invalid region'),
+    body('bucketEndpoint').isString().trim().notEmpty().withMessage('Bucket endpoint required (e.g., s3.us-east-005.backblazeb2.com)'),
     body('maxSizeGb').optional().isInt({ min: 1, max: 100 }).withMessage('Max size must be 1-100 GB'),
     handleValidationErrors,
   ],

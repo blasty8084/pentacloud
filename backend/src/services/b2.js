@@ -25,10 +25,15 @@ export class B2Service {
         applicationKey: account.app_key,
       });
       try {
-        await b2.authorize();
-        // Store the endpoint and parsed region with the account
+        const authResponse = await b2.authorize();
+        // Store the bucket ID from the authorization response
+        // For keys restricted to a single bucket, the response includes allowed.bucketId
+        const bucketId = authResponse.data.allowed?.bucketId;
+        
+        // Store the endpoint, parsed region, and bucketId with the account
         account.bucket_endpoint = account.bucket_endpoint;
         account.region = this.parseEndpoint(account.bucket_endpoint);
+        account.bucket_id = bucketId; // Store the real bucket ID for uploads
         this.clients.set(account.id, { b2, account });
         initializedCount++;
         console.log(`B2 account "${account.name}" (${account.id}) initialized`);
@@ -63,7 +68,12 @@ export class B2Service {
     if (!client) throw new Error(`B2 account ${accountId} not found`);
 
     const { b2, account } = client;
-    const uploadUrlResponse = await b2.getUploadUrl({ bucketId: account.bucket_name });
+    // Use the actual bucket ID (not the bucket name) for getUploadUrl
+    const bucketId = account.bucket_id;
+    if (!bucketId) {
+      throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+    }
+    const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
     const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
 
     const b2FileName = `${uuidv4()}-${fileName}`;

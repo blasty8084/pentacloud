@@ -13,7 +13,7 @@ router.get('/b2-accounts', (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
-  const accounts = db.prepare('SELECT id, name, bucket_name, bucket_region, max_size_gb, created_at FROM b2_accounts').all();
+  const accounts = db.prepare('SELECT id, name, bucket_name, bucket_endpoint, max_size_gb, created_at FROM b2_accounts').all();
   res.json(accounts);
 });
 
@@ -22,20 +22,24 @@ router.post('/b2-accounts', validators.addB2Account, async (req, res) => {
     return res.status(403).json({ error: 'Admin only' });
   }
 
-  const { name, keyId, applicationKey, bucketId, bucketName, bucketRegion, maxSizeGb } = req.body;
+  const { name, keyId, appKey, bucketName, bucketEndpoint, maxSizeGb } = req.body;
 
   const id = uuidv4();
   db.prepare(
-    `INSERT INTO b2_accounts (id, name, key_id, application_key, bucket_id, bucket_name, bucket_region, max_size_gb)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, name, keyId, applicationKey, bucketId, bucketName, bucketRegion || '', maxSizeGb || 10);
+    `INSERT INTO b2_accounts (id, name, key_id, app_key, bucket_name, bucket_endpoint, max_size_gb)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, name, keyId, appKey, bucketName, bucketEndpoint, maxSizeGb || 10);
 
-  const b2 = new B2({ applicationKeyId: keyId, applicationKey });
+  const b2 = new B2({ applicationKeyId: keyId, applicationKey: appKey });
   await b2.authorize();
-  b2Service.clients.set(id, { b2, account: { id, name, key_id: keyId, application_key: applicationKey, bucket_id: bucketId, bucket_name: bucketName, max_size_gb: maxSizeGb || 10 } });
+  // Get the bucket ID from the authorization response
+  const authResponse = await b2.authorize();
+  const bucketId = authResponse.data.allowed?.bucketId;
+  
+  b2Service.clients.set(id, { b2, account: { id, name, key_id: keyId, app_key: appKey, bucket_name: bucketName, bucket_endpoint: bucketEndpoint, bucket_id: bucketId, max_size_gb: maxSizeGb || 10 } });
   b2Service.accounts.push(b2Service.clients.get(id).account);
 
-  const account = db.prepare('SELECT id, name, bucket_name, bucket_region, max_size_gb, created_at FROM b2_accounts WHERE id = ?').get(id);
+  const account = db.prepare('SELECT id, name, bucket_name, bucket_endpoint, max_size_gb, created_at FROM b2_accounts WHERE id = ?').get(id);
   res.status(201).json(account);
 });
 
