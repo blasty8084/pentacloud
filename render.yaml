@@ -1,79 +1,100 @@
-# Render configuration for PENTACLOUD Backend
-# This file defines a Web Service with persistent disk for SQLite database
+# Render Blueprint for PENTACLOUD
+# Deploy with: render blueprint deploy (or click "New Blueprint Instance" in Render dashboard)
+# Spec: https://render.com/docs/blueprint-spec
 
 services:
+  # Backend API Service
   - type: web
-    name: pentacloud-api
+    name: pentacloud-backend
     runtime: node
-    plan: free
-    buildCommand: bun install
-    startCommand: bun src/index.js
-    # Bun is not natively supported on Render, so we use Node with bun
-    # Alternatively, use Docker for full Bun support
-    
-    # Environment variables (set in Render dashboard, not here)
-    # envVars:
-    #   - key: NODE_ENV
-    #     value: production
-    #   - key: PORT
-    #     value: "10000"
-    #   - key: JWT_SECRET
-    #     sync: false
-    #   - key: FRONTEND_URL
-    #     value: https://your-frontend.vercel.app
-    #   - key: B2_1_KEY_ID
-    #     sync: false
-    #   - key: B2_1_APPLICATION_KEY
-    #     sync: false
-    #   - key: B2_1_BUCKET_ID
-    #     sync: false
-    #   - key: B2_1_BUCKET_NAME
-    #     sync: false
-    #   - key: B2_1_BUCKET_REGION
-    #     sync: false
-    #   - key: B2_2_KEY_ID
-    #     sync: false
-    #   - key: B2_2_APPLICATION_KEY
-    #     sync: false
-    #   - key: B2_2_BUCKET_ID
-    #     sync: false
-    #   - key: B2_2_BUCKET_NAME
-    #     sync: false
-    #   - key: B2_2_BUCKET_REGION
-    #     sync: false
-    #   - key: B2_3_KEY_ID
-    #     sync: false
-    #   - key: B2_3_APPLICATION_KEY
-    #     sync: false
-    #   - key: B2_3_BUCKET_ID
-    #     sync: false
-    #   - key: B2_3_BUCKET_NAME
-    #     sync: false
-    #   - key: B2_3_BUCKET_REGION
-    #     sync: false
-    #   - key: B2_4_KEY_ID
-    #     sync: false
-    #   - key: B2_4_APPLICATION_KEY
-    #     sync: false
-    #   - key: B2_4_BUCKET_ID
-    #     sync: false
-    #   - key: B2_4_BUCKET_NAME
-    #     sync: false
-    #   - key: B2_4_BUCKET_REGION
-    #     sync: false
-    #   - key: B2_5_KEY_ID
-    #     sync: false
-    #   - key: B2_5_APPLICATION_KEY
-    #     sync: false
-    #   - key: B2_5_BUCKET_ID
-    #     sync: false
-    #   - key: B2_5_BUCKET_NAME
-    #     sync: false
-    #   - key: B2_5_BUCKET_REGION
-    #     sync: false
-    
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /api/health
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+        sync: false
+      - key: PORT
+        value: "10000"
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: B2_1_KEY_ID
+        sync: false
+      - key: B2_1_APP_KEY
+        sync: false
+      - key: B2_1_BUCKET_NAME
+        sync: false
+      - key: B2_1_BUCKET_ENDPOINT
+        sync: false
+      - key: B2_2_KEY_ID
+        sync: false
+      - key: B2_2_APP_KEY
+        sync: false
+      - key: B2_2_BUCKET_NAME
+        sync: false
+      - key: B2_2_BUCKET_ENDPOINT
+        sync: false
+      - key: B2_3_KEY_ID
+        sync: false
+      - key: B2_3_APP_KEY
+        sync: false
+      - key: B2_3_BUCKET_NAME
+        sync: false
+      - key: B2_3_BUCKET_ENDPOINT
+        sync: false
+      - key: B2_4_KEY_ID
+        sync: false
+      - key: B2_4_APP_KEY
+        sync: false
+      - key: B2_4_BUCKET_NAME
+        sync: false
+      - key: B2_4_BUCKET_ENDPOINT
+        sync: false
+      - key: B2_5_KEY_ID
+        sync: false
+      - key: B2_5_APP_KEY
+        sync: false
+      - key: B2_5_BUCKET_NAME
+        sync: false
+      - key: B2_5_BUCKET_ENDPOINT
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+        sync: false
     # Persistent disk for SQLite database
+    # The backend stores DB at backend/data/pentacloud.db relative to backend root
+    # Render working directory is backend/, so data is at ./data
     disk:
       name: pentacloud-data
-      mountPath: /app/backend/data
+      mountPath: /app/data
       sizeGB: 1
+
+# Frontend is deployed separately to Vercel (not included in this blueprint)
+# If you want to host frontend on Render instead, uncomment the service below:
+#
+#   - type: web
+#     name: pentacloud-frontend
+#     runtime: static
+#     rootDir: frontend
+#     buildCommand: npm install && npm run build
+#     staticPublishPath: dist
+#     envVars:
+#       - key: VITE_API_URL
+#         fromService:
+#           name: pentacloud-backend
+#           type: web
+#           property: hostport
+#           envVarKey: VITE_API_URL
+#           transform: "https://${value}/api"
+#     routes:
+#       - type: rewrite
+#         source: /*
+#         destination: /index.html
+
+version: "1"
