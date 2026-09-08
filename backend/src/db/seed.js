@@ -33,17 +33,14 @@ for (let i = 1; i <= 5; i++) {
   const maxSizeGb = parseInt(process.env[`B2_${i}_MAX_SIZE_GB`] || '10', 10);
 
   if (name && keyId && appKey && bucketName && bucketEndpoint) {
-    const existing = db.prepare('SELECT id FROM b2_accounts WHERE name = ?').get(name);
-    if (!existing) {
-      const id = `b2-${i}-${Date.now()}`;
-      db.prepare(
-        `INSERT INTO b2_accounts (id, name, key_id, app_key, bucket_name, bucket_endpoint, max_size_gb)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).run(id, name, keyId, appKey, bucketName, bucketEndpoint, maxSizeGb);
-      console.log(`Added B2 account: ${name}`);
-    } else {
-      console.log(`B2 account ${name} already exists`);
-    }
+    // Delete existing and insert new (since name is unique for our purposes)
+    db.prepare('DELETE FROM b2_accounts WHERE name = ?').run(name);
+    const id = `b2-${i}-${Date.now()}`;
+    db.prepare(
+      `INSERT INTO b2_accounts (id, name, key_id, app_key, bucket_name, bucket_endpoint, max_size_gb)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, name, keyId, appKey, bucketName, bucketEndpoint, maxSizeGb);
+    console.log(`Updated/Inserted B2 account: ${name}`);
   }
 }
 
