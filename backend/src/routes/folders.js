@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import db from '../db/init.js';
+import { query } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 import validators from '../middleware/validate.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,13 +7,14 @@ import { v4 as uuidv4 } from 'uuid';
 const router = Router();
 router.use(authMiddleware);
 
-router.get('/', (req, res) => {
-  const folders = db.prepare('SELECT * FROM folders WHERE user_id = ? ORDER BY name').all(req.user.id);
-  res.json(folders);
+router.get('/', async (req, res) => {
+  const folders = await query('SELECT * FROM folders WHERE user_id = $1 ORDER BY name', [req.user.id]);
+  res.json(folders.rows);
 });
 
-router.get('/tree', (req, res) => {
-  const folders = db.prepare('SELECT * FROM folders WHERE user_id = ? ORDER BY name').all(req.user.id);
+router.get('/tree', async (req, res) => {
+  const foldersResult = await query('SELECT * FROM folders WHERE user_id = $1 ORDER BY name', [req.user.id]);
+  const folders = foldersResult.rows;
   const folderMap = new Map();
   const roots = [];
 
@@ -33,36 +34,37 @@ router.get('/tree', (req, res) => {
   res.json(roots);
 });
 
-router.post('/', validators.createFolder, (req, res) => {
+router.post('/', validators.createFolder, async (req, res) => {
   const { name, parentId } = req.body;
 
   if (parentId) {
-    const parent = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(parentId, req.user.id);
-    if (!parent) {
+    const parent = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [parentId, req.user.id]);
+    if (parent.rows.length === 0) {
       return res.status(404).json({ error: 'Parent folder not found' });
     }
   }
 
   const id = uuidv4();
-  db.prepare('INSERT INTO folders (id, name, parent_id, user_id) VALUES (?, ?, ?, ?)')
-    .run(id, name, parentId || null, req.user.id);
+  await query('INSERT INTO folders (id, name, parent_id, user_id) VALUES ($1, $2, $3, $4)', [id, name, parentId || null, req.user.id]);
 
-  const folder = db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
-  res.status(201).json(folder);
+  const folder = await query('SELECT * FROM folders WHERE id = $1', [id]);
+  res.status(201).json(folder.rows[0]);
 });
 
-router.patch('/:id', validators.updateFolder, (req, res) => {
-  const folder = db.prepare('SELECT * FROM folders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!folder) {
+router.patch('/:id', validators.updateFolder, async (req, res) => {
+  const folderResult = await query('SELECT * FROM folders WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+  if (folderResult.rows.length === 0) {
     return res.status(404).json({ error: 'Folder not found' });
   }
 
+  const folder = folderResult.rows[0];
   const { name, parentId } = req.body;
   const updates = [];
   const params = [];
+  let paramIndex = 1;
 
   if (name !== undefined) {
-    updates.push('name = ?');
+    updates.push(`name = $${paramIndex++}`);
     params.push(name);
   }
   if (parentId !== undefined) {
@@ -70,8 +72,8 @@ router.patch('/:id', validators.updateFolder, (req, res) => {
       return res.status(400).json({ error: 'Cannot move folder into itself' });
     }
     if (parentId) {
-      const parent = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(parentId, req.user.id);
-      if (!parent) {
+      const parent = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [parentId, req.user.id]);
+      if (parent.rows.length === 0) {
         return res.status(404).json({ error: 'Parent folder not found' });
       }
       let current = folder;
@@ -79,32 +81,32 @@ router.patch('/:id', validators.updateFolder, (req, res) => {
         if (current.parent_id === parentId) {
           return res.status(400).json({ error: 'Cannot move folder into its own descendant' });
         }
-        current = db.prepare('SELECT * FROM folders WHERE id = ?').get(current.parent_id);
+        const currentResult = await query('SELECT * FROM folders WHERE id = $1', [current.parent_id]);
+        current = currentResult.rows[0];
       }
     }
-    updates.push('parent_id = ?');
+    updates.push(`parent_id = $${paramIndex++}`);
     params.push(parentId || null);
   }
   if (updates.length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
-  updates.push('updated_at = ?');
-  params.push(Date.now());
+  updates.push(`updated_at = NOW()`);
   params.push(req.params.id);
 
-  db.prepare(`UPDATE folders SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-  const updated = db.prepare('SELECT * FROM folders WHERE id = ?').get(req.params.id);
-  res.json(updated);
+  await query(`UPDATE folders SET ${updates.join(', ')} WHERE id = $${paramIndex}`, params);
+  const updatedResult = await query('SELECT * FROM folders WHERE id = $1', [req.params.id]);
+  res.json(updatedResult.rows[0]);
 });
 
-router.delete('/:id', validators.deleteFolder, (req, res) => {
-  const folder = db.prepare('SELECT * FROM folders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!folder) {
+router.delete('/:id', async (req, res) => {
+  const folderResult = await query('SELECT * FROM folders WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+  if (folderResult.rows.length === 0) {
     return res.status(404).json({ error: 'Folder not found' });
   }
 
-  db.prepare('DELETE FROM folders WHERE id = ?').run(req.params.id);
+  await query('DELETE FROM folders WHERE id = $1', [req.params.id]);
   res.json({ success: true });
 });
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import db from '../db/init.js';
+import { query } from '../db/index.js';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -20,22 +20,24 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-    if (existing) {
+    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
-    if (userCount.count >= 5) {
+    const userCount = await query('SELECT COUNT(*) as count FROM users');
+    if (userCount.rows[0].count >= 5) {
       return res.status(403).json({ error: 'Maximum 5 users allowed' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const id = uuidv4();
-    const role = userCount.count === 0 ? 'admin' : 'user';
+    const role = parseInt(userCount.rows[0].count) === 0 ? 'admin' : 'user';
 
-    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)')
-      .run(id, email, passwordHash, name || '', role);
+    await query(
+      'INSERT INTO users (id, email, password_hash, name, role) VALUES ($1, $2, $3, $4, $5)',
+      [id, email, passwordHash, name || '', role]
+    );
 
     const user = { id, email, name: name || '', role };
     const accessToken = generateAccessToken(user);
@@ -56,11 +58,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) {
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const user = result.rows[0];
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -90,11 +93,12 @@ router.post('/refresh', async (req, res) => {
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
 
-    const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(payload.id);
-    if (!user) {
+    const result = await query('SELECT id, email, name, role FROM users WHERE id = $1', [payload.id]);
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    const user = result.rows[0];
     const userData = { id: user.id, email: user.email, name: user.name, role: user.role };
     const accessToken = generateAccessToken(userData);
     const newRefreshToken = generateRefreshToken(userData);

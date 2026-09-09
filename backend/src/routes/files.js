@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import db from '../db/init.js';
+import { query } from '../db/index.js';
 import b2Service from '../services/b2.js';
 import { authMiddleware } from '../middleware/auth.js';
 import validators from '../middleware/validate.js';
@@ -44,26 +44,27 @@ const upload = multer({
 
 router.use(authMiddleware);
 
-router.get('/', validators.listFiles, (req, res) => {
+router.get('/', validators.listFiles, async (req, res) => {
   const { folderId, search } = req.query;
-  let query = 'SELECT * FROM files WHERE user_id = ?';
+  let queryText = 'SELECT * FROM files WHERE user_id = $1';
   const params = [req.user.id];
 
   if (folderId) {
-    query += ' AND folder_id = ?';
+    queryText += ' AND folder_id = $2';
     params.push(folderId);
   } else {
-    query += ' AND folder_id IS NULL';
+    queryText += ' AND folder_id IS NULL';
   }
 
   if (search) {
-    query += ' AND name LIKE ?';
+    const paramIndex = params.length + 1;
+    queryText += ` AND name LIKE $${paramIndex}`;
     params.push(`%${search}%`);
   }
 
-  query += ' ORDER BY created_at DESC';
-  const files = db.prepare(query).all(...params);
-  res.json(files);
+  queryText += ' ORDER BY created_at DESC';
+  const result = await query(queryText, params);
+  res.json(result.rows);
 });
 
 router.post('/upload', upload.single('file'), async (req, res) => {
@@ -74,8 +75,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const { folderId } = req.body;
     if (folderId) {
-      const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(folderId, req.user.id);
-      if (!folder) {
+      const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
+      if (folder.rows.length === 0) {
         return res.status(404).json({ error: 'Folder not found' });
       }
     }
@@ -85,8 +86,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(507).json({ error: 'No B2 accounts configured or all full' });
     }
 
-    const usedResult = db.prepare('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = ?').get(account.id);
-    const used = usedResult.used || 0;
+    const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
+    const used = parseInt(usedResult.rows[0].used);
     const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
     if (used + req.file.size > maxBytes) {
       return res.status(507).json({ error: 'Selected B2 account has insufficient space' });
@@ -101,13 +102,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     );
 
     const fileId = uuidv4();
-    db.prepare(
+    await query(
       `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName);
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
+    );
 
-    const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId);
-    res.status(201).json(file);
+    const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
+    res.status(201).json(fileResult.rows[0]);
   } catch (err) {
     if (err.message?.includes('not allowed')) {
       return res.status(400).json({ error: err.message });
@@ -119,11 +121,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
 router.get('/:id/download', validators.deleteFile, async (req, res) => {
   try {
-    const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-    if (!file) {
+    const fileResult = await query('SELECT * FROM files WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
 
+    const file = fileResult.rows[0];
     const stream = await b2Service.downloadFile(file.b2_account_id, file.b2_file_name);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
     res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
@@ -135,53 +138,54 @@ router.get('/:id/download', validators.deleteFile, async (req, res) => {
   }
 });
 
-router.patch('/:id', validators.updateFile, (req, res) => {
-  const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!file) {
+router.patch('/:id', validators.updateFile, async (req, res) => {
+  const fileResult = await query('SELECT * FROM files WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+  if (fileResult.rows.length === 0) {
     return res.status(404).json({ error: 'File not found' });
   }
 
   const { name, folderId } = req.body;
   const updates = [];
   const params = [];
+  let paramIndex = 1;
 
   if (name !== undefined) {
     const sanitizedName = sanitizeFileName(name);
-    updates.push('name = ?');
+    updates.push(`name = $${paramIndex++}`);
     params.push(sanitizedName);
   }
   if (folderId !== undefined) {
     if (folderId) {
-      const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?').get(folderId, req.user.id);
-      if (!folder) {
+      const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
+      if (folder.rows.length === 0) {
         return res.status(404).json({ error: 'Target folder not found' });
       }
     }
-    updates.push('folder_id = ?');
+    updates.push(`folder_id = $${paramIndex++}`);
     params.push(folderId || null);
   }
   if (updates.length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
-  updates.push('updated_at = ?');
-  params.push(Date.now());
+  updates.push(`updated_at = NOW()`);
   params.push(req.params.id);
 
-  db.prepare(`UPDATE files SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-  const updated = db.prepare('SELECT * FROM files WHERE id = ?').get(req.params.id);
-  res.json(updated);
+  await query(`UPDATE files SET ${updates.join(', ')} WHERE id = $${paramIndex}`, params);
+  const updatedResult = await query('SELECT * FROM files WHERE id = $1', [req.params.id]);
+  res.json(updatedResult.rows[0]);
 });
 
 router.delete('/:id', validators.deleteFile, async (req, res) => {
   try {
-    const file = db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-    if (!file) {
+    const fileResult = await query('SELECT * FROM files WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
 
+    const file = fileResult.rows[0];
     await b2Service.deleteFile(file.b2_account_id, file.b2_file_name, file.b2_file_id);
-    db.prepare('DELETE FROM files WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM files WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     console.error('Delete error:', err);

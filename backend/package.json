@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "bun --watch src/index.js",
     "start": "node src/index.js",
-    "db:init": "bun src/db/init.js"
+    "db:init": "bun src/db/init.js",
+    "db:seed": "bun src/db/seed.js"
   },
   "dependencies": {
     "backblaze-b2": "^1.7.1",
     "bcrypt": "^5.1.1",
-    "better-sqlite3": "^11.2.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -20,6 +20,7 @@
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.5",
     "uuid": "^10.0.0"
   }
 }

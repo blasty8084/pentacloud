@@ -6,7 +6,7 @@ import { authMiddleware } from '../middleware/auth.js';
 const router = Router();
 router.use(authMiddleware);
 
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   const stats = b2Service.getStorageStats();
   const totalUsed = stats.reduce((sum, s) => sum + s.used, 0);
   const totalMax = stats.reduce((sum, s) => sum + s.max, 0);
