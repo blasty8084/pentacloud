@@ -16,10 +16,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-        sync: false
       - key: PORT
         value: "10000"
-        sync: false
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
@@ -66,13 +64,12 @@ services:
         sync: false
       - key: LOG_LEVEL
         value: info
-        sync: false
     # Persistent disk for SQLite database
-    # The backend stores DB at backend/data/pentacloud.db relative to backend root
-    # Render working directory is backend/, so data is at ./data
+    # With rootDir: backend, working dir is /opt/render/project/src/backend
+    # Database is at ./data/pentacloud.db relative to working dir
     disk:
       name: pentacloud-data
-      mountPath: /app/data
+      mountPath: /opt/render/project/src/backend/data
       sizeGB: 1
 
 # Frontend is deployed separately to Vercel (not included in this blueprint)
