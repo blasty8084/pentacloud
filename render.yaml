@@ -75,11 +75,7 @@ services:
       - key: B2_5_BUCKET_ENDPOINT
         sync: false
 
-      # ── Logging ──
-      - key: LOG_LEVEL
-        value: info
-
-    # Persistent disk for SQLite database
+      # Persistent disk for SQLite database
     # With rootDir: backend, working dir is /opt/render/project/src/backend
     # Database is at ./data/pentacloud.db relative to working dir
     disk:
