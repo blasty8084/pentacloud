@@ -45,7 +45,7 @@ export class B2Service {
     console.log(`Initialized ${initializedCount}/${this.accounts.length} B2 accounts`);
   }
 
-  getAccountWithMostSpace() {
+  async getAccountWithMostSpace() {
     let bestAccount = null;
     let mostFreeSpace = -1;
 

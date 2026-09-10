@@ -1,6 +1,6 @@
 import { query } from '../db/index.js';
 
-export async function initializeDatabase() {
+export default async function initializeDatabase() {
   // Users table
   await query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -66,7 +66,7 @@ export async function initializeDatabase() {
       expires_at TIMESTAMP WITH TIME ZONE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
-  `;
+  `);
 
   // Indexes
   await query('CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);');
@@ -78,6 +78,5 @@ export async function initializeDatabase() {
 }
 
 export async function getDb() {
-  // This is a placeholder - actual db pool is in ../db/index.js
   return null;
 }
