@@ -1,5 +1,5 @@
 import B2 from 'backblaze-b2';
-import db from '../db/init.js';
+import { query } from '../db/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class B2Service {
@@ -16,7 +16,8 @@ export class B2Service {
   }
 
   async initialize() {
-    this.accounts = db.prepare('SELECT * FROM b2_accounts').all();
+    const result = await query('SELECT * FROM b2_accounts');
+    this.accounts = result.rows;
     let initializedCount = 0;
     
     for (const account of this.accounts) {
@@ -49,8 +50,8 @@ export class B2Service {
     let mostFreeSpace = -1;
 
     for (const account of this.accounts) {
-      const usedResult = db.prepare('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = ?').get(account.id);
-      const used = usedResult.used || 0;
+      const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
+      const used = parseInt(usedResult.rows[0].used) || 0;
       const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
       const freeSpace = maxBytes - used;
 
@@ -127,11 +128,11 @@ export class B2Service {
     return response.data.files[0] || null;
   }
 
-  getStorageStats() {
+  async getStorageStats() {
     const stats = [];
     for (const account of this.accounts) {
-      const usedResult = db.prepare('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = ?').get(account.id);
-      const used = usedResult.used || 0;
+      const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
+      const used = parseInt(usedResult.rows[0].used) || 0;
       const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
       stats.push({
         id: account.id,

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import db from '../db/init.js';
+import { query } from '../db/index.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'pentacloud-secret-change-in-production';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || JWT_SECRET + '-refresh';
@@ -42,7 +42,7 @@ export function verifyRefreshToken(token) {
   }
 }
 
-export function authMiddleware(req, res, next) {
+export async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -54,23 +54,23 @@ export function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(payload.id);
-  if (!user) {
+  const result = await query('SELECT id, email, name, role FROM users WHERE id = $1', [payload.id]);
+  if (result.rows.length === 0) {
     return res.status(401).json({ error: 'User not found' });
   }
 
-  req.user = user;
+  req.user = result.rows[0];
   next();
 }
 
-export function optionalAuthMiddleware(req, res, next) {
+export async function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     const payload = verifyAccessToken(token);
     if (payload) {
-      const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(payload.id);
-      if (user) req.user = user;
+      const result = await query('SELECT id, email, name, role FROM users WHERE id = $1', [payload.id]);
+      if (result.rows.length > 0) req.user = result.rows[0];
     }
   }
   next();

@@ -75,13 +75,15 @@ services:
       - key: B2_5_BUCKET_ENDPOINT
         sync: false
 
-      # Persistent disk for SQLite database
-    # With rootDir: backend, working dir is /opt/render/project/src/backend
-    # Database is at ./data/pentacloud.db relative to working dir
-    disk:
-      name: pentacloud-data
-      mountPath: /opt/render/project/src/backend/data
-      sizeGB: 1
+      # ── Database ──
+      - key: NEON_DATABASE_URL
+        sync: false
+
+      # ── Logging ──
+      - key: LOG_LEVEL
+        value: info
+
+    # No persistent disk needed - using Neon PostgreSQL
 
 # Frontend is deployed separately to Vercel (not included in this blueprint)
 # If you want to host frontend on Render instead, uncomment the service below:
