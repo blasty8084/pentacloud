@@ -1,4 +1,5 @@
 import { query } from '../db/index.js';
+import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -29,4 +30,39 @@ async function seedB2Accounts() {
   console.log('B2 accounts seeded from environment');
 }
 
-seedB2Accounts().catch(console.error);
+async function seedDefaultAdmin() {
+  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+  const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.warn('DEFAULT_ADMIN_EMAIL or DEFAULT_ADMIN_PASSWORD not set. Skipping default admin creation.');
+    return;
+  }
+
+  try {
+    const existingAdmin = await query('SELECT id FROM users WHERE email = $1', [adminEmail]);
+    if (existingAdmin.rows.length > 0) {
+      console.log(`Default admin already exists: ${adminEmail}`);
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    
+    await query(`
+      INSERT INTO users (id, email, password_hash, name, role)
+      VALUES (gen_random_uuid(), $1, $2, $3, 'admin')
+      ON CONFLICT (email) DO NOTHING
+    `, [adminEmail, passwordHash, 'Admin']);
+
+    console.log(`Default admin created: ${adminEmail}`);
+  } catch (err) {
+    console.error('Failed to create default admin:', err.message);
+  }
+}
+
+async function seed() {
+  await seedB2Accounts();
+  await seedDefaultAdmin();
+}
+
+seed().catch(console.error);
