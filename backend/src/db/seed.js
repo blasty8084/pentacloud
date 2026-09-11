@@ -30,7 +30,7 @@ async function seedB2Accounts() {
   console.log('B2 accounts seeded from environment');
 }
 
-async function seedDefaultAdmin() {
+export async function seedDefaultAdmin() {
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
 
@@ -65,4 +65,4 @@ async function seed() {
   await seedDefaultAdmin();
 }
 
-seed().catch(console.error);
+export { seed };

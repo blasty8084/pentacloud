@@ -1,6 +1,6 @@
 import { query } from '../db/index.js';
 
-export default async function initializeDatabase() {
+async function initializeDatabase() {
   // Users table
   await query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -80,3 +80,6 @@ export default async function initializeDatabase() {
 export async function getDb() {
   return null;
 }
+
+export { initializeDatabase };
+export default initializeDatabase;

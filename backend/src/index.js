@@ -13,6 +13,8 @@ if (process.env.NODE_ENV !== 'production') {
   import('dotenv').then(dotenv => dotenv.config());
 }
 
+import { initializeDatabase } from './db/init.js';
+import { seedDefaultAdmin } from './db/seed.js';
 import authRoutes from './routes/auth.js';
 import fileRoutes from './routes/files.js';
 import folderRoutes from './routes/folders.js';
@@ -82,7 +84,17 @@ app.use('/api/settings', settingsRoutes);
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 async function start() {
+  // Initialize database tables
+  await initializeDatabase();
+  console.log('Database tables initialized');
+
+  // Seed default admin user
+  await seedDefaultAdmin();
+  console.log('Default admin seeding complete');
+
+  // Initialize B2 service
   await B2ServiceInstance.initialize();
+
   app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
   });

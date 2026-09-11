@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "bun --watch src/index.js",
     "start": "node src/index.js",
-    "db:init": "bun src/db/init.js",
-    "db:seed": "bun src/db/seed.js"
+    "db:init": "node src/db/init.js",
+    "db:seed": "node src/db/seed.js"
   },
   "dependencies": {
     "backblaze-b2": "^1.7.1",
