@@ -65,4 +65,4 @@ async function seed() {
   await seedDefaultAdmin();
 }
 
-export { seed };
+export { seed, seedB2Accounts };

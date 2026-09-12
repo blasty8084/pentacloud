@@ -4,17 +4,15 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, '..');
 
-// Load .env only in development (for local dev)
-if (process.env.NODE_ENV !== 'production') {
-  import('dotenv').then(dotenv => dotenv.config());
-}
-
 import { initializeDatabase } from './db/init.js';
-import { seedDefaultAdmin } from './db/seed.js';
+import { seedDefaultAdmin, seedB2Accounts } from './db/seed.js';
 import authRoutes from './routes/auth.js';
 import fileRoutes from './routes/files.js';
 import folderRoutes from './routes/folders.js';
@@ -87,6 +85,10 @@ async function start() {
   // Initialize database tables
   await initializeDatabase();
   console.log('Database tables initialized');
+
+  // Seed B2 accounts
+  await seedB2Accounts();
+  console.log('B2 accounts seeded');
 
   // Seed default admin user
   await seedDefaultAdmin();

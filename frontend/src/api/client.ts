@@ -85,10 +85,9 @@ export const settingsApi = {
   addB2Account: (data: {
     name: string;
     keyId: string;
-    applicationKey: string;
-    bucketId: string;
+    appKey: string;
     bucketName: string;
-    bucketRegion?: string;
+    bucketEndpoint: string;
     maxSizeGb?: number;
   }) => api.post('/settings/b2-accounts', data),
   deleteB2Account: (id: string) => api.delete(`/settings/b2-accounts/${id}`),

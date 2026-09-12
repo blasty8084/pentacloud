@@ -1,18 +1,18 @@
 import { useAuth } from '../context/AuthContext';
-import { Settings as SettingsIcon, User, Shield, LogOut, Plus, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, Shield, LogOut, Plus, Trash2, Database, AlertCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { settingsApi } from '../api/client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface B2Account {
   id: string;
   name: string;
   bucket_name: string;
-  bucket_region: string;
+  bucket_endpoint: string;
   max_size_gb: number;
-  created_at: number;
+  created_at: string;
 }
 
 export default function Settings() {
@@ -23,10 +23,9 @@ export default function Settings() {
   const [formData, setFormData] = useState({
     name: '',
     keyId: '',
-    applicationKey: '',
-    bucketId: '',
+    appKey: '',
     bucketName: '',
-    bucketRegion: '',
+    bucketEndpoint: '',
     maxSizeGb: 10,
   });
   const [adding, setAdding] = useState(false);
@@ -51,7 +50,7 @@ export default function Settings() {
     try {
       await settingsApi.addB2Account(formData);
       setShowAddModal(false);
-      setFormData({ name: '', keyId: '', applicationKey: '', bucketId: '', bucketName: '', bucketRegion: '', maxSizeGb: 10 });
+      setFormData({ name: '', keyId: '', appKey: '', bucketName: '', bucketEndpoint: '', maxSizeGb: 10 });
       fetchAccounts();
     } catch (err: any) {
       setAddError(err.response?.data?.error || 'Failed to add account');
@@ -69,6 +68,10 @@ export default function Settings() {
       console.error('Failed to delete account:', err);
     }
   };
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,8 +99,8 @@ export default function Settings() {
                   <User className="w-8 h-8 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-medium text-gray-900">{user?.name || 'Unnamed User'}</p>
-                  <p className="text-gray-500">{user?.email}</p>
+                  <p className="text-lg font-medium text-white">{user?.name || 'Unnamed User'}</p>
+                  <p className="text-gray-400">{user?.email}</p>
                   <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 capitalize">
                     {user?.role}
                   </span>
@@ -123,7 +126,7 @@ export default function Settings() {
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <div className="space-y-4">
                     {[1, 2, 3].map(i => (
-                      <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+                      <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
                     ))}
                   </div>
                 </div>
@@ -141,16 +144,16 @@ export default function Settings() {
                 <div className="space-y-4">
                   {accounts.map(account => (
                     <div key={account.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
                             <Database className="w-6 h-6 text-green-600" />
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{account.name}</p>
-                            <p className="text-sm text-gray-500">{account.bucket_name}</p>
+                            <p className="text-sm text-gray-400">{account.bucket_name}</p>
                             <p className="text-xs text-gray-400 mt-1">
-                              Region: {account.bucket_region || 'Unknown'} • {account.max_size_gb}GB limit
+                              Endpoint: {account.bucket_endpoint} • {account.max_size_gb}GB limit
                             </p>
                           </div>
                         </div>
@@ -160,7 +163,7 @@ export default function Settings() {
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDeleteAccount(account.id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </Button>
                       </div>
                     </div>
@@ -183,7 +186,7 @@ export default function Settings() {
           <section>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LogOut className="w-5 h-5" />
+                <AlertCircle className="w-5 h-5 text-red-400" />
                 Danger Zone
               </h2>
               <Button variant="danger" onClick={logout}>
@@ -202,10 +205,9 @@ export default function Settings() {
         <form onSubmit={handleAddAccount} className="space-y-4">
           <Input label="Account Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="e.g., Primary Storage" />
           <Input label="Key ID" value={formData.keyId} onChange={e => setFormData({...formData, keyId: e.target.value})} required />
-          <Input label="Application Key" type="password" value={formData.applicationKey} onChange={e => setFormData({...formData, applicationKey: e.target.value})} required />
-          <Input label="Bucket ID" value={formData.bucketId} onChange={e => setFormData({...formData, bucketId: e.target.value})} required />
+          <Input label="App Key" type="password" value={formData.appKey} onChange={e => setFormData({...formData, appKey: e.target.value})} required />
           <Input label="Bucket Name" value={formData.bucketName} onChange={e => setFormData({...formData, bucketName: e.target.value})} required />
-          <Input label="Bucket Region (optional)" value={formData.bucketRegion} onChange={e => setFormData({...formData, bucketRegion: e.target.value})} placeholder="e.g., us-west-000" />
+          <Input label="Bucket Endpoint" value={formData.bucketEndpoint} onChange={e => setFormData({...formData, bucketEndpoint: e.target.value})} required placeholder="e.g., s3.us-east-005.backblazeb2.com" />
           <Input
             label="Max Size (GB)"
             type="number"
@@ -224,5 +226,3 @@ export default function Settings() {
     </div>
   );
 }
-
-import { Database } from 'lucide-react';

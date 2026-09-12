@@ -10,10 +10,11 @@ import {
   clearTokenCookies,
 } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
+import validators from '../middleware/validate.js';
 
 const router = Router();
 
-router.post('/signup', async (req, res) => {
+router.post('/signup', validators.signup, async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password) {
@@ -51,7 +52,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', validators.login, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
