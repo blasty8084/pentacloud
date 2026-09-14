@@ -81,7 +81,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       }
     }
 
-    const account = b2Service.getAccountWithMostSpace();
+    const account = await b2Service.getAccountWithMostSpace();
     if (!account) {
       return res.status(507).json({ error: 'No B2 accounts configured or all full' });
     }
