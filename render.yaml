@@ -83,10 +83,6 @@ services:
       - key: NEON_DATABASE_URL
         sync: false
 
-      # ── Logging ──
-      - key: LOG_LEVEL
-        value: info
-
     # No persistent disk needed - using Neon PostgreSQL
 
 # Frontend is deployed separately to Vercel (not included in this blueprint)
