@@ -18,7 +18,7 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS b2_accounts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(255) NOT NULL,
-      key_id VARCHAR(255) NOT NULL,
+      key_id VARCHAR(255) NOT NULL UNIQUE,
       app_key TEXT NOT NULL,
       bucket_name VARCHAR(255) NOT NULL,
       bucket_endpoint VARCHAR(255) NOT NULL,
