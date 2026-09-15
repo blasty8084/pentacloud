@@ -71,8 +71,12 @@ async function initializeDatabase() {
   // Indexes
   await query('CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id);');
   await query('CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);');
+  await query('CREATE INDEX IF NOT EXISTS idx_files_deleted ON files(deleted_at);');
   await query('CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);');
   await query('CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);');
+  await query('CREATE INDEX IF NOT EXISTS idx_files_b2_account ON files(b2_account_id);');
+  await query('CREATE INDEX IF NOT EXISTS idx_folders_user ON folders(user_id);');
+  await query('CREATE INDEX IF NOT EXISTS idx_shares_file ON shares(file_id);');
 
   console.log('Database initialized (PostgreSQL)');
 }
