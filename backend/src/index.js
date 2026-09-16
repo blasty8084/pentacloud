@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -22,6 +23,9 @@ import settingsRoutes from './routes/settings.js';
 import { b2Service as B2ServiceInstance } from './services/b2.js';
 
 const app = express();
+
+// Compression middleware for JSON responses
+app.use(compression());
 const PORT = process.env.PORT || 4000;
 const isProd = process.env.NODE_ENV === 'production';
 

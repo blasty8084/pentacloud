@@ -45,7 +45,9 @@ const upload = multer({
 router.use(authMiddleware);
 
 router.get('/', validators.listFiles, async (req, res) => {
-  const { folderId, search } = req.query;
+  const { folderId, search, limit = '50', offset = '0' } = req.query;
+  const limitVal = Math.min(parseInt(limit) || 50, 200); // Max 200 per page
+  const offsetVal = Math.max(parseInt(offset) || 0, 0);
   let queryText = 'SELECT * FROM files WHERE user_id = $1';
   const params = [req.user.id];
 
@@ -62,9 +64,38 @@ router.get('/', validators.listFiles, async (req, res) => {
     params.push(`%${search}%`);
   }
 
-  queryText += ' ORDER BY created_at DESC';
-  const result = await query(queryText, params);
-  res.json(result.rows);
+  queryText += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+  params.push(limitVal, offsetVal);
+
+  // Get total count for pagination metadata
+  let countQuery = 'SELECT COUNT(*) FROM files WHERE user_id = $1';
+  const countParams = [req.user.id];
+  if (folderId) {
+    countQuery += ' AND folder_id = $2';
+    countParams.push(folderId);
+  } else {
+    countQuery += ' AND folder_id IS NULL';
+  }
+  if (search) {
+    const paramIndex = countParams.length + 1;
+    countQuery += ` AND name LIKE $${paramIndex}`;
+    countParams.push(`%${search}%`);
+  }
+
+  const [result, countResult] = await Promise.all([
+    query(queryText, params),
+    query(countQuery, countParams)
+  ]);
+
+  res.json({
+    files: result.rows,
+    pagination: {
+      limit,
+      offset,
+      total: parseInt(countResult.rows[0].count),
+      hasMore: offset + limit < parseInt(countResult.rows[0].count)
+    }
+  });
 });
 
 router.post('/upload', upload.single('file'), async (req, res) => {

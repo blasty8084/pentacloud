@@ -8,6 +8,7 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { UploadZone } from '../components/UploadZone';
 import { FileGrid } from '../components/FileGrid';
+import { FileGridSkeleton } from '../components/Skeleton';
 import { FolderSidebar } from '../components/FolderSidebar';
 import { StorageDashboard } from '../components/StorageDashboard';
 import { ShareModal } from '../components/ShareModal';
@@ -572,9 +573,7 @@ function FileView({
 
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
-          </div>
+          <FileGridSkeleton count={8} />
         ) : files.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
             <Folder className="w-16 h-16 mb-4 opacity-50" />
