@@ -1,25 +1,48 @@
 import type { ReactNode } from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Download, Edit, Trash2, Share2, Eye, Star, Folder, File, Move } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
+import { X, Download, Edit, Trash2, Share2, Eye, Star, Folder, File, Move, ChevronRight } from 'lucide-react';
 
-interface ContextMenuItem {
+export interface ContextMenuItem {
   label: string;
   icon?: ReactNode;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
+  dividerBefore?: boolean;
   dividerAfter?: boolean;
 }
 
 interface ContextMenuProps {
   x: number;
   y: number;
-  items: ContextMenuItem[];
+  items: Array<{
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function ContextMenu({ x, y, items, isOpen, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, items, isOpen, onClose }: {
+  x: number;
+  y: number;
+  items: Array<{
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +66,7 @@ export function ContextMenu({ x, y, items, isOpen, onClose }: ContextMenuProps) 
         }
       };
       document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleEscape);
     }
   }, [isOpen, onClose]);
 
@@ -87,27 +110,98 @@ export function ContextMenu({ x, y, items, isOpen, onClose }: ContextMenuProps) 
   );
 }
 
-interface ContextMenuProviderProps {
-  children: ReactNode;
-}
-
 interface ContextMenuState {
   x: number;
   y: number;
-  items: ContextMenuItem[];
+  items: Array<{
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>;
   isOpen: boolean;
   targetId: string | null;
   targetType: 'file' | 'folder' | null;
 }
 
-const Context = createContext<{
-  state: ContextMenuState;
-  open: (x: number, y: number, items: ContextMenuItem[], targetId: string, targetType: 'file' | 'folder') => void;
+interface ContextMenuContextType {
+  state: {
+    x: number;
+    y: number;
+    items: Array<{
+      label: string;
+      icon?: React.ReactNode;
+      onClick: () => void;
+      disabled?: boolean;
+      danger?: boolean;
+      dividerBefore?: boolean;
+      dividerAfter?: boolean;
+    }>;
+    isOpen: boolean;
+    targetId: string | null;
+    targetType: 'file' | 'folder' | null;
+  };
+  open: (x: number, y: number, items: Array<{
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>, targetId: string, targetType: 'file' | 'folder') => void;
+  close: () => void;
+}
+
+const ContextMenuContext = createContext<{
+  state: {
+    x: number;
+    y: number;
+    items: Array<{
+      label: string;
+      icon?: React.ReactNode;
+      onClick: () => void;
+      disabled?: boolean;
+      danger?: boolean;
+      dividerBefore?: boolean;
+      dividerAfter?: boolean;
+    }>;
+    isOpen: boolean;
+    targetId: string | null;
+    targetType: 'file' | 'folder' | null;
+  };
+  open: (x: number, y: number, items: Array<{
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>, targetId: string, targetType: 'file' | 'folder') => void;
   close: () => void;
 } | null>(null);
 
-export function ContextMenuProvider({ children }: ContextMenuProviderProps) {
-  const [state, setState] = useState<ContextMenuState>({
+export function ContextMenuProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<{
+    x: number;
+    y: number;
+    items: Array<{
+      label: string;
+      icon?: React.ReactNode;
+      onClick: () => void;
+      disabled?: boolean;
+      danger?: boolean;
+      dividerBefore?: boolean;
+      dividerAfter?: boolean;
+    }>;
+    isOpen: boolean;
+    targetId: string | null;
+    targetType: 'file' | 'folder' | null;
+  }>({
     x: 0,
     y: 0,
     items: [],
@@ -116,11 +210,19 @@ export function ContextMenuProvider({ children }: ContextMenuProviderProps) {
     targetType: null,
   });
 
-  const open = useCallback((x: number, y: number, items: ContextMenuItem[], targetId: string, targetType: 'file' | 'folder') => {
+  const open = useCallback((x: number, y: number, items: Array<{
+    label: string;
+    icon?: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }>, targetId: string, targetType: 'file' | 'folder') => {
     setState({
       x,
       y,
-      items,
+      items: items.map(item => ({ ...item, dividerBefore: false, dividerAfter: false })),
       isOpen: true,
       targetId,
       targetType,
@@ -132,79 +234,16 @@ export function ContextMenuProvider({ children }: ContextMenuProviderProps) {
   }, []);
 
   return (
-    <Context.Provider value={{ state, open, close }}>
+    <ContextMenuContext.Provider value={{ state: { x: 0, y: 0, items: [], isOpen: false, targetId: null, targetType: null }, open, close }}>
       {children}
-      {isOpen && (
-        <div className="fixed inset-0 z-50" onClick={close} onContextMenu={(e) => e.preventDefault()}>
-          <div className="absolute z-50" style={{ left: state.x, top: state.y }}>
-            {/* Context menu will be rendered by a separate component */}
-          </div>
-        </div>
-      )}
-    </Context.Provider>
+    </ContextMenuContext.Provider>
   );
 }
 
 export function useContextMenu() {
-  const context = useContext(Context);
+  const context = useContext(ContextMenuContext);
   if (!context) {
     throw new Error('useContextMenu must be used within a ContextMenuProvider');
   }
   return context;
-}
-
-interface FileContextMenuProps {
-  file: {
-    id: string;
-    name: string;
-    mime_type: string;
-    size: number;
-    folder_id: string | null;
-    isStarred?: boolean;
-  };
-  onOpen: () => void;
-  onDownload: () => void;
-  onRename: () => void;
-  onMove: () => void;
-  onShare: () => void;
-  onDelete: () => void;
-  onToggleStar: () => void;
-}
-
-export function FileContextMenu({ file, onOpen, onDownload, onRename, onMove, onShare, onDelete, onToggleStar }: FileContextMenuProps) {
-  const { open, close } = useContextMenu();
-  const isStarred = file.isStarred;
-
-  const items = [
-    { label: 'Open', icon: <Eye className="w-4 h-4" />, onClick: onOpen },
-    { label: 'Download', icon: <Download className="w-4 h-4" />, onClick: onDownload },
-    { label: 'Rename', icon: <Edit className="w-4 h-4" />, onClick: onRename },
-    { label: 'Move', icon: <Move className="w-4 h-4" />, onClick: onMove },
-    { label: 'Share', icon: <Share2 className="w-4 h-4" />, onClick: onShare },
-    { label: isStarred ? 'Remove from Starred' : 'Add to Starred', icon: isStarred ? <Star className="w-4 h-4 fill-yellow-400" /> : <Star className="w-4 h-4" />, onClick: onToggleStar },
-    { dividerBefore: true },
-    { label: 'Delete', icon: <Trash2 className="w-4 h-4" />, onClick: onDelete, danger: true },
-  ];
-
-  return (
-    <div onContextMenu={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = (e.target as HTMLElement).getBoundingClientRect();
-      open(e.clientX, e.clientY, [
-        { label: 'Open', icon: <Eye className="w-4 h-4" />, onClick: onOpen },
-        { label: 'Download', icon: <Download className="w-4 h-4" />, onClick: onDownload },
-        { label: 'Rename', icon: <Edit className="w-4 h-4" />, onClick: onRename },
-        { label: 'Move', icon: <Move className="w-4 h-4" />, onClick: onMove },
-        { label: 'Share', icon: <Share2 className="w-4 h-4" />, onClick: onShare },
-        { label: isStarred ? 'Remove from Starred' : 'Add to Starred', icon: isStarred ? <Star className="w-4 h-4 fill-yellow-400" /> : <Star className="w-4 h-4" />, onClick: onToggleStar },
-        { dividerBefore: true },
-        { label: 'Delete', icon: <Trash2 className="w-4 h-4" />, onClick: onDelete, danger: true },
-      ]);
-    }}>
-      <div onClick={onOpen} className="group relative">
-        {children}
-      </div>
-    </div>
-  );
 }

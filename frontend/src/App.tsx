@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UploadProvider } from './context/UploadContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ContextMenuProvider } from './context/ContextMenuContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -72,7 +73,9 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <UploadProvider>
-          <AppRoutes />
+          <ContextMenuProvider>
+            <AppRoutes />
+          </ContextMenuProvider>
         </UploadProvider>
       </AuthProvider>
     </ThemeProvider>
