@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { MoreVertical, Download, Edit, Trash2, Share2, Eye } from 'lucide-react';
 import { Menu, MenuItem, MenuTrigger } from './Menu';
@@ -11,6 +13,7 @@ interface File {
   folder_id: string | null;
   b2_account_id: string;
   created_at: number;
+  is_starred?: boolean;
 }
 
 interface FileGridProps {
@@ -22,6 +25,12 @@ interface FileGridProps {
   onMove: (file: File) => void;
   onDelete: (id: string, type: 'file' | 'folder') => void;
   onShare: (file: File) => void;
+  onToggleStar?: (file: File) => void;
+  onContextMenu?: (e: React.MouseEvent, file: File) => void;
+  onDragStart?: (e: React.DragEvent, file: File) => void;
+  onDragOver?: (e: React.DragEvent, folder: File) => void;
+  onDrop?: (e: React.DragEvent, folder: File) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
   getFileIcon: (mimeType: string) => ReactNode;
   formatSize: (bytes: number) => string;
   formatDate: (timestamp: number) => string;
@@ -36,15 +45,62 @@ export function FileGrid({
   onMove,
   onDelete,
   onShare,
+  onToggleStar,
+  onContextMenu,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   getFileIcon,
   formatSize,
   formatDate,
 }: FileGridProps) {
+  const [draggedFile, setDraggedFile] = useState<File | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, file: File) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ id: file.id, name: file.name, type: 'file' }));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedFile(file);
+    if (onDragStart) onDragStart(e, file);
+  };
+
+  const handleDragOver = (e: React.DragEvent, folder: any) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (onDragOver) onDragOver(e, folder);
+  };
+
+  const handleDrop = (e: React.DragEvent, folder: any) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.type === 'file' && onMove) {
+        onMove({ id: data.id, type: 'file' }, folder.id);
+      }
+    } catch (err) {
+      console.error('Drop error:', err);
+    }
+    if (onDrop) onDrop(e, folder);
+    setDraggedFile(null);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedFile(null);
+    if (onDragEnd) onDragEnd(e);
+  };
+
   const renderFileCard = (file: File) => (
     <div
       key={file.id}
       className="group bg-white border border-gray-200 rounded-xl p-3 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
       onDoubleClick={() => onPreview(file)}
+      onContextMenu={(e) => onContextMenu?.(e as React.MouseEvent, file)}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: file.id, name: file.name, type: 'file' })); e.dataTransfer.effectAllowed = 'move'; setDraggedFile(file); if (onDragStart) onDragStart(e, file); }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (onDragOver) onDragOver(e, folder); }}
+      onDrop={(e) => { e.preventDefault(); try { const data = JSON.parse(e.dataTransfer.getData('application/json')); if (data.type === 'file' && onMove) onMove({ id: data.id, type: 'file' }, file.id); } catch (err) { console.error('Drop error:', err); } }}
+      onDragEnd={() => { if (onDragEnd) onDragEnd(e); }}
     >
       <div className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
         {getFileIcon(file.mime_type)}

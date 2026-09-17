@@ -72,6 +72,29 @@ export function ContextMenu({ x, y, items, isOpen, onClose }: {
 
   if (!isOpen) return null;
 
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const getButtonClassName = (item: {
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
+  }): string => {
+    const base = 'w-full px-3 py-2 text-sm flex items-center gap-2 text-left transition-colors';
+    const danger = item.danger
+      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800';
+    const disabled = item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+    return base + ' ' + danger + ' ' + disabled;
+  };
+
+  if (!isOpen) return null;
+
+  const menuRef = useRef<HTMLDivElement>(null);
+
   return (
     <div
       ref={menuRef}
@@ -92,11 +115,7 @@ export function ContextMenu({ x, y, items, isOpen, onClose }: {
               onClose();
             }}
             disabled={item.disabled}
-            className={`w-full px-3 py-2 text-sm flex items-center gap-2 text-left transition-colors ${
-              item.danger
-                ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
-            } ${item.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            className="w-full px-3 py-2 text-sm flex items-center gap-2 text-left transition-colors cursor-pointer"
             role="menuitem"
             disabled={item.disabled}
           >
@@ -105,7 +124,7 @@ export function ContextMenu({ x, y, items, isOpen, onClose }: {
           </button>
         )}
         {item.dividerAfter && <hr className="my-1 border-gray-200 dark:border-slate-700" />}
-      ))}
+      )}
     </div>
   );
 }

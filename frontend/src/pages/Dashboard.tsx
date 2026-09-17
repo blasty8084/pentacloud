@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUpload } from '../context/UploadContext';
 import { useTheme } from '../context/ThemeContext';
+import { useContextMenu } from '../context/ContextMenuContext';
 import { filesApi, foldersApi, sharesApi, storageApi } from '../api/client';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
@@ -18,12 +19,14 @@ import { SearchBar } from '../components/SearchBar';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { AccentSelector } from '../components/AccentSelector';
 import { UserMenu } from '../components/UserMenu';
+import { ContextMenu } from '../components/ContextMenu';
+import { ContextMenuProvider, useContextMenu } from '../context/ContextMenuContext';
 import { formatBytes, formatDate } from '../utils/format';
 import {
   FolderPlus, LogOut, Menu, X, ChevronRight, ChevronLeft,
   MoreVertical, Download, Edit, Trash2, Share2, Eye, FileText,
   Image, File, Folder, Settings, Cloud, HardDrive, Share, Users,
-  BarChart2, Home, Globe, Palette
+  BarChart2, Home, Globe, Palette, Star, Clock, RefreshCw, ExternalLink
 } from 'lucide-react';
 
 interface BackendFile {
@@ -35,6 +38,7 @@ interface BackendFile {
   folder_id: string | null;
   b2_account_id: string;
   created_at: number;
+  is_starred?: boolean;
 }
 
 interface Folder {
@@ -42,12 +46,15 @@ interface Folder {
   name: string;
   parent_id: string | null;
   children?: Folder[];
+  is_starred?: boolean;
 }
 
-type NavItem = 'files' | 'shared' | 'storage' | 'settings';
+type NavItem = 'files' | 'recent' | 'starred' | 'shared' | 'storage' | 'settings';
 
 const navItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: 'files', label: 'My Files', icon: <Home className="w-5 h-5" /> },
+  { id: 'recent', label: 'Recent', icon: <Clock className="w-5 h-5" /> },
+  { id: 'starred', label: 'Starred', icon: <Star className="w-5 h-5" /> },
   { id: 'shared', label: 'Shared', icon: <Share className="w-5 h-5" /> },
   { id: 'storage', label: 'Storage Usage', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
@@ -148,6 +155,14 @@ export default function Dashboard() {
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
 
+  // New state for new features
+  const [recentFiles, setRecentFiles] = useState<BackendFile[]>([]);
+  const [starredFiles, setStarredFiles] = useState<BackendFile[]>([]);
+  const [starredFolders, setStarredFolders] = useState<Folder[]>([]);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuItems, setContextMenuItems] = useState<any[]>([]);
+  const [contextMenuTarget, setContextMenuTarget] = useState<{ file: BackendFile | null; type: 'file' | 'folder' } | null>(null);
+
   const fetchFiles = useCallback(async () => {
     try {
       const response = await filesApi.list({
@@ -173,10 +188,34 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchRecentFiles = useCallback(async () => {
+    try {
+      const response = await filesApi.list({ limit: 20, sort: 'date' });
+      setRecentFiles(response.data);
+    } catch (err) {
+      console.error('Failed to fetch recent files:', err);
+    }
+  }, []);
+
+  const fetchStarred = useCallback(async () => {
+    try {
+      const [filesRes, foldersRes] = await Promise.all([
+        filesApi.list({ starred: true }),
+        foldersApi.list({ starred: true }),
+      ]);
+      setStarredFiles(filesRes.data);
+      setStarredFolders(foldersRes.data);
+    } catch (err) {
+      console.error('Failed to fetch starred items:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchFiles();
     fetchFolders();
-  }, [fetchFiles, fetchFolders]);
+    fetchRecentFiles();
+    fetchStarred();
+  }, [fetchFiles, fetchFolders, fetchRecentFiles, fetchStarred]);
 
   useEffect(() => {
     const handleUploadProgress = (event: CustomEvent) => {
