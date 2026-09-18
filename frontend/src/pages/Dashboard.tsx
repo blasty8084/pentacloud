@@ -153,9 +153,11 @@ export default function Dashboard() {
         folderId: currentFolderId || undefined,
         search: searchQuery || undefined,
       });
-      setFiles(response.data);
+      const data = response.data;
+      setFiles(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch files:', err);
+      setFiles([]);
     }
   }, [currentFolderId, searchQuery]);
 
@@ -165,10 +167,14 @@ export default function Dashboard() {
         foldersApi.list(),
         foldersApi.tree(),
       ]);
-      setFolders(flatResponse.data);
-      setFolderTree(treeResponse.data);
+      const flatData = flatResponse.data;
+      const treeData = treeResponse.data;
+      setFolders(Array.isArray(flatData) ? flatData : []);
+      setFolderTree(Array.isArray(treeData) ? treeData : []);
     } catch (err) {
       console.error('Failed to fetch folders:', err);
+      setFolders([]);
+      setFolderTree([]);
     }
   }, []);
 
