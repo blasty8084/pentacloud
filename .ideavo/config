@@ -1,0 +1,67 @@
+{
+  "systemSetup": [],
+  "templateName": "custom",
+  "projectDependencies": [
+    {
+      "name": "Install Frontend Dependencies",
+      "command": "bun install",
+      "workdir": "frontend"
+    },
+    {
+      "name": "Install Backend Dependencies",
+      "command": "bun install",
+      "workdir": "backend"
+    }
+  ],
+  "codeChecks": [
+    {
+      "name": "TypeCheck Frontend",
+      "command": "bunx tsc --noEmit",
+      "workdir": "frontend"
+    }
+  ],
+  "buildSteps": [
+    {
+      "name": "Build Frontend",
+      "command": "bun run build",
+      "workdir": "frontend"
+    }
+  ],
+  "runStep": [
+    {
+      "name": "Run Backend Dev Server",
+      "command": "bun run dev",
+      "port": "4000",
+      "workdir": "backend"
+    },
+    {
+      "name": "Run Frontend Dev Server",
+      "command": "bun run dev",
+      "port": "5173",
+      "workdir": "frontend"
+    }
+  ],
+  "deploySteps": [
+    {
+      "name": "Deploy Backend to Render",
+      "command": "render blueprint deploy",
+      "workdir": "."
+    }
+  ],
+  "cleanupFiles": [
+    "frontend/dist",
+    "frontend/node_modules",
+    "backend/node_modules"
+  ],
+  "packageManager": "bun",
+  "envPaths": [
+    {
+      "name": "frontend",
+      "path": "frontend/.env"
+    },
+    {
+      "name": "backend",
+      "path": "backend/.env"
+    }
+  ]
+}
