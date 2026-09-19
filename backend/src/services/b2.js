@@ -35,7 +35,7 @@ export class B2Service {
         account.bucket_endpoint = account.bucket_endpoint;
         account.region = this.parseEndpoint(account.bucket_endpoint);
         account.bucket_id = bucketId; // Store the real bucket ID for uploads
-        this.clients.set(account.id, { b2, account });
+        this.clients.set(account.id, { b2, account, uploadUrl: null, uploadAuthToken: null });
         initializedCount++;
         console.log(`B2 account "${account.name}" (${account.id}) initialized`);
       } catch (err) {
@@ -54,12 +54,35 @@ export class B2Service {
       const authResponse = await b2.authorize();
       const bucketId = authResponse.data.allowed?.bucketId;
       account.bucket_id = bucketId;
+      // Invalidate cached upload URL since auth changed
+      client.uploadUrl = null;
+      client.uploadAuthToken = null;
       console.log(`B2 account "${account.name}" (${account.id}) re-authorized`);
       return client;
     } catch (err) {
       console.error(`Failed to re-authorize B2 account "${account.name}" (${account.id}): ${err.message}`);
       throw err;
     }
+  }
+
+  // Get or refresh upload URL for an account
+  async getUploadUrl(accountId) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    const { b2, account } = client;
+    const bucketId = account.bucket_id;
+    if (!bucketId) {
+      throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+    }
+    
+    const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
+    const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
+    
+    client.uploadUrl = uploadUrl;
+    client.uploadAuthToken = authorizationToken;
+    
+    return { uploadUrl, authorizationToken };
   }
 
   // Wrapper to execute B2 operations with automatic re-auth on 401
@@ -79,6 +102,31 @@ export class B2Service {
         console.log(`B2 account ${accountId} got 401, re-authorizing...`);
         await this.reauthorizeAccount(accountId);
         // Retry the operation once with fresh token
+        return await operation(this.clients.get(accountId));
+      }
+      throw err;
+    }
+  }
+
+  // Wrapper for upload operations with upload URL retry on expiry
+  async executeUploadWithRetry(accountId, operation) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    try {
+      return await operation(client);
+    } catch (err) {
+      // Check if it's an expired/invalid upload URL error
+      // B2 returns specific errors when upload URL is expired or invalid
+      const isUploadUrlExpired = err.response?.status === 400 && 
+                                 (err.response?.data?.code === 'expired_auth_token' ||
+                                  err.response?.data?.code === 'invalid_auth_token' ||
+                                  (err.message && (err.message.includes('expired') || err.message.includes('invalid')) && err.message.includes('auth_token')));
+      
+      if (isUploadUrlExpired) {
+        console.log(`B2 account ${accountId} upload URL expired, fetching fresh URL...`);
+        await this.getUploadUrl(accountId);
+        // Retry the operation once with fresh upload URL
         return await operation(this.clients.get(accountId));
       }
       throw err;
@@ -106,27 +154,33 @@ export class B2Service {
 
   async uploadFile(accountId, fileName, fileBuffer, mimeType) {
     return this.executeWithRetry(accountId, async (client) => {
-      const { b2, account } = client;
-      const bucketId = account.bucket_id;
-      if (!bucketId) {
-        throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+      // Ensure we have a valid upload URL
+      if (!client.uploadUrl || !client.uploadAuthToken) {
+        console.log(`B2 account ${accountId} fetching initial upload URL...`);
+        await this.getUploadUrl(accountId);
       }
-      const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
-      const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
+      
+      return this.executeUploadWithRetry(accountId, async (client) => {
+        const { b2, account, uploadUrl, uploadAuthToken } = client;
+        const bucketId = account.bucket_id;
+        if (!bucketId) {
+          throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+        }
 
-      const b2FileName = `${uuidv4()}-${fileName}`;
-      const uploadResponse = await b2.uploadFile({
-        uploadUrl,
-        uploadAuthToken: authorizationToken,
-        fileName: b2FileName,
-        data: fileBuffer,
-        mime: mimeType,
+        const b2FileName = `${uuidv4()}-${fileName}`;
+        const uploadResponse = await b2.uploadFile({
+          uploadUrl,
+          uploadAuthToken,
+          fileName: b2FileName,
+          data: fileBuffer,
+          mime: mimeType,
+        });
+
+        return {
+          b2FileId: uploadResponse.data.fileId,
+          b2FileName: uploadResponse.data.fileName,
+        };
       });
-
-      return {
-        b2FileId: uploadResponse.data.fileId,
-        b2FileName: uploadResponse.data.fileName,
-      };
     });
   }
 
