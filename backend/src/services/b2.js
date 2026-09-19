@@ -218,10 +218,6 @@ async getAccountWithMostSpace() {
       accounts: stats,
     };
   }
-    }
-
-    return bestAccount;
-  }
 
   async uploadFile(accountId, fileName, fileBuffer, mimeType) {
     return this.executeWithRetry(accountId, async (client) => {
@@ -284,26 +280,6 @@ async getAccountWithMostSpace() {
       });
       return response.data.files[0] || null;
     });
-  }
-
-  async getStorageStats() {
-    const stats = [];
-    for (const account of this.accounts) {
-      const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
-      const used = parseInt(usedResult.rows[0].used) || 0;
-      const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
-      stats.push({
-        id: account.id,
-        name: account.name,
-        bucketName: account.bucket_name,
-        bucketEndpoint: account.bucket_endpoint,
-        used,
-        max: maxBytes,
-        free: maxBytes - used,
-        percentage: maxBytes > 0 ? Math.round((used / maxBytes) * 100) : 0,
-      });
-    }
-    return stats;
   }
 }
 
