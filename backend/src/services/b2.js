@@ -45,6 +45,46 @@ export class B2Service {
     console.log(`Initialized ${initializedCount}/${this.accounts.length} B2 accounts`);
   }
 
+  async reauthorizeAccount(accountId) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    const { b2, account } = client;
+    try {
+      const authResponse = await b2.authorize();
+      const bucketId = authResponse.data.allowed?.bucketId;
+      account.bucket_id = bucketId;
+      console.log(`B2 account "${account.name}" (${account.id}) re-authorized`);
+      return client;
+    } catch (err) {
+      console.error(`Failed to re-authorize B2 account "${account.name}" (${account.id}): ${err.message}`);
+      throw err;
+    }
+  }
+
+  // Wrapper to execute B2 operations with automatic re-auth on 401
+  async executeWithRetry(accountId, operation) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    try {
+      return await operation(client);
+    } catch (err) {
+      // Check if it's a 401 unauthorized error (token expired)
+      const isUnauthorized = err.response?.status === 401 || 
+                             err.status === 401 || 
+                             (err.message && err.message.includes('401'));
+      
+      if (isUnauthorized) {
+        console.log(`B2 account ${accountId} got 401, re-authorizing...`);
+        await this.reauthorizeAccount(accountId);
+        // Retry the operation once with fresh token
+        return await operation(this.clients.get(accountId));
+      }
+      throw err;
+    }
+  }
+
   async getAccountWithMostSpace() {
     let bestAccount = null;
     let mostFreeSpace = -1;
@@ -65,67 +105,60 @@ export class B2Service {
   }
 
   async uploadFile(accountId, fileName, fileBuffer, mimeType) {
-    const client = this.clients.get(accountId);
-    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    return this.executeWithRetry(accountId, async (client) => {
+      const { b2, account } = client;
+      const bucketId = account.bucket_id;
+      if (!bucketId) {
+        throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+      }
+      const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
+      const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
 
-    const { b2, account } = client;
-    // Use the actual bucket ID (not the bucket name) for getUploadUrl
-    const bucketId = account.bucket_id;
-    if (!bucketId) {
-      throw new Error(`B2 account ${accountId} has no bucket ID stored`);
-    }
-    const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
-    const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
+      const b2FileName = `${uuidv4()}-${fileName}`;
+      const uploadResponse = await b2.uploadFile({
+        uploadUrl,
+        uploadAuthToken: authorizationToken,
+        fileName: b2FileName,
+        data: fileBuffer,
+        mime: mimeType,
+      });
 
-    const b2FileName = `${uuidv4()}-${fileName}`;
-    const uploadResponse = await b2.uploadFile({
-      uploadUrl,
-      uploadAuthToken: authorizationToken,
-      fileName: b2FileName,
-      data: fileBuffer,
-      mime: mimeType,
+      return {
+        b2FileId: uploadResponse.data.fileId,
+        b2FileName: uploadResponse.data.fileName,
+      };
     });
-
-    return {
-      b2FileId: uploadResponse.data.fileId,
-      b2FileName: uploadResponse.data.fileName,
-    };
   }
 
   async downloadFile(accountId, b2FileName) {
-    const client = this.clients.get(accountId);
-    if (!client) throw new Error(`B2 account ${accountId} not found`);
-
-    const { b2, account } = client;
-    const response = await b2.downloadFileByName({
-      bucketName: account.bucket_name,
-      fileName: b2FileName,
-      responseType: 'stream',
+    return this.executeWithRetry(accountId, async (client) => {
+      const { b2, account } = client;
+      const response = await b2.downloadFileByName({
+        bucketName: account.bucket_name,
+        fileName: b2FileName,
+        responseType: 'stream',
+      });
+      return response.data;
     });
-
-    return response.data;
   }
 
   async deleteFile(accountId, b2FileName, b2FileId) {
-    const client = this.clients.get(accountId);
-    if (!client) throw new Error(`B2 account ${accountId} not found`);
-
-    const { b2 } = client;
-    await b2.deleteFileVersion({ fileName: b2FileName, fileId: b2FileId });
+    return this.executeWithRetry(accountId, async (client) => {
+      const { b2 } = client;
+      await b2.deleteFileVersion({ fileName: b2FileName, fileId: b2FileId });
+    });
   }
 
   async getFileInfo(accountId, b2FileName) {
-    const client = this.clients.get(accountId);
-    if (!client) throw new Error(`B2 account ${accountId} not found`);
-
-    const { b2, account } = client;
-    const response = await b2.listFileNames({
-      bucketName: account.bucket_name,
-      prefix: b2FileName,
-      maxFileCount: 1,
+    return this.executeWithRetry(accountId, async (client) => {
+      const { b2, account } = client;
+      const response = await b2.listFileNames({
+        bucketName: account.bucket_name,
+        prefix: b2FileName,
+        maxFileCount: 1,
+      });
+      return response.data.files[0] || null;
     });
-
-    return response.data.files[0] || null;
   }
 
   async getStorageStats() {
