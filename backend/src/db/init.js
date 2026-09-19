@@ -23,6 +23,7 @@ async function initializeDatabase() {
       bucket_name VARCHAR(255) NOT NULL,
       bucket_endpoint VARCHAR(255) NOT NULL,
       max_size_gb INTEGER DEFAULT 10,
+      used_bytes BIGINT DEFAULT 0,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);

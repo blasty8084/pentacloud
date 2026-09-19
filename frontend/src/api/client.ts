@@ -91,4 +91,5 @@ export const settingsApi = {
     maxSizeGb?: number;
   }) => api.post('/settings/b2-accounts', data),
   deleteB2Account: (id: string) => api.delete(`/settings/b2-accounts/${id}`),
+  reconcileStorage: () => api.post('/settings/b2-accounts/reconcile'),
 };

@@ -133,20 +133,91 @@ export class B2Service {
     }
   }
 
-  async getAccountWithMostSpace() {
-    let bestAccount = null;
-    let mostFreeSpace = -1;
-
-    for (const account of this.accounts) {
-      const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
-      const used = parseInt(usedResult.rows[0].used) || 0;
+async getAccountWithMostSpace() {
+    // Single query to get all accounts with their used_bytes
+    const result = await query('SELECT * FROM b2_accounts ORDER BY used_bytes ASC');
+    const accounts = result.rows;
+    
+    for (const account of accounts) {
       const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
-      const freeSpace = maxBytes - used;
-
-      if (freeSpace > mostFreeSpace) {
-        mostFreeSpace = freeSpace;
-        bestAccount = account;
+      const freeSpace = maxBytes - (account.used_bytes || 0);
+      
+      if (freeSpace > 0) {
+        return account;
       }
+    }
+    
+    return null;
+  }
+
+  // Increment used_bytes for an account after successful upload
+  async incrementUsedBytes(accountId, bytes) {
+    await query(
+      'UPDATE b2_accounts SET used_bytes = used_bytes + $1 WHERE id = $2',
+      [bytes, accountId]
+    );
+  }
+
+  // Decrement used_bytes for an account after successful delete
+  async decrementUsedBytes(accountId, bytes) {
+    await query(
+      'UPDATE b2_accounts SET used_bytes = GREATEST(used_bytes - $1, 0) WHERE id = $2',
+      [bytes, accountId]
+    );
+  }
+
+  // Reconcile used_bytes with actual file sizes in database
+  async reconcileUsedBytes() {
+    const result = await query(`
+      UPDATE b2_accounts ba
+      SET used_bytes = COALESCE((
+        SELECT SUM(f.size) 
+        FROM files f 
+        WHERE f.b2_account_id = ba.id
+      ), 0)
+      RETURNING id, name, used_bytes
+    `);
+    console.log('Storage reconciliation completed:', result.rows);
+    return result.rows;
+  }
+
+  // Get storage stats using cached used_bytes (fast, no SUM queries)
+  async getStorageStats() {
+    const accountsResult = await query('SELECT * FROM b2_accounts');
+    const accounts = accountsResult.rows;
+    
+    const stats = [];
+    let totalUsed = 0;
+    let totalMax = 0;
+    
+    for (const account of accounts) {
+      const used = account.used_bytes || 0;
+      const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
+      totalUsed += used;
+      totalMax += maxBytes;
+      
+      stats.push({
+        id: account.id,
+        name: account.name,
+        bucketName: account.bucket_name,
+        bucketEndpoint: account.bucket_endpoint,
+        used,
+        max: maxBytes,
+        free: maxBytes - used,
+        percentage: maxBytes > 0 ? Math.round((used / maxBytes) * 100) : 0,
+      });
+    }
+    
+    return {
+      total: { 
+        used: totalUsed, 
+        max: totalMax, 
+        free: totalMax - totalUsed, 
+        percentage: totalMax > 0 ? Math.round((totalUsed / totalMax) * 100) : 0 
+      },
+      accounts: stats,
+    };
+  }
     }
 
     return bestAccount;

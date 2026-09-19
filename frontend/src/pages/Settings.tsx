@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { Settings as SettingsIcon, User, Shield, LogOut, Plus, Trash2, Database, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, User, Shield, LogOut, Plus, Trash2, Database, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
@@ -30,6 +30,8 @@ export default function Settings() {
   });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileError, setReconcileError] = useState('');
 
   const fetchAccounts = async () => {
     if (user?.role !== 'admin') return;
@@ -66,6 +68,19 @@ export default function Settings() {
       fetchAccounts();
     } catch (err) {
       console.error('Failed to delete account:', err);
+    }
+  };
+
+  const handleReconcile = async () => {
+    setReconcileError('');
+    setReconciling(true);
+    try {
+      await settingsApi.reconcileStorage();
+      fetchAccounts();
+    } catch (err: any) {
+      setReconcileError(err.response?.data?.error || 'Failed to reconcile storage');
+    } finally {
+      setReconciling(false);
     }
   };
 
@@ -116,11 +131,29 @@ export default function Settings() {
                   <Database className="w-5 h-5" />
                   Backblaze B2 Accounts
                 </h2>
-                <Button onClick={() => setShowAddModal(true)}>
-                  <Plus className="w-4 h-4" />
-                  Add Account
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleReconcile}
+                    disabled={reconciling}
+                    className="gap-1"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${reconciling ? 'animate-spin' : ''}`} />
+                    Sync Storage
+                  </Button>
+                  <Button onClick={() => setShowAddModal(true)}>
+                    <Plus className="w-4 h-4" />
+                    Add Account
+                  </Button>
+                </div>
               </div>
+
+              {reconcileError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {reconcileError}
+                </div>
+              )}
 
               {loading ? (
                 <div className="bg-white rounded-xl border border-gray-200 p-6">

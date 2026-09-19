@@ -63,4 +63,12 @@ router.delete('/b2-accounts/:id', validators.deleteB2Account, async (req, res) =
   res.json({ success: true });
 });
 
+router.post('/b2-accounts/reconcile', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  const result = await b2Service.reconcileUsedBytes();
+  res.json({ success: true, accounts: result });
+});
+
 export default router;

@@ -86,9 +86,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(507).json({ error: 'No B2 accounts configured or all full' });
     }
 
-    const usedResult = await query('SELECT COALESCE(SUM(size), 0) as used FROM files WHERE b2_account_id = $1', [account.id]);
-    const used = parseInt(usedResult.rows[0].used);
     const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
+    const used = account.used_bytes || 0;
     if (used + req.file.size > maxBytes) {
       return res.status(507).json({ error: 'Selected B2 account has insufficient space' });
     }
@@ -107,6 +106,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
     );
+
+    // Increment used_bytes after successful file record creation
+    await b2Service.incrementUsedBytes(account.id, req.file.size);
 
     const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
     res.status(201).json(fileResult.rows[0]);
@@ -186,6 +188,10 @@ router.delete('/:id', validators.deleteFile, async (req, res) => {
     const file = fileResult.rows[0];
     await b2Service.deleteFile(file.b2_account_id, file.b2_file_name, file.b2_file_id);
     await query('DELETE FROM files WHERE id = $1', [req.params.id]);
+    
+    // Decrement used_bytes after successful delete
+    await b2Service.decrementUsedBytes(file.b2_account_id, file.size);
+    
     res.json({ success: true });
   } catch (err) {
     console.error('Delete error:', err);
