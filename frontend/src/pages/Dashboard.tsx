@@ -60,9 +60,25 @@ function StorageMeterMini({ t }: { t: (key: string) => string }) {
     const fetchStats = async () => {
       try {
         const response = await storageApi.stats();
-        setStats(response.data);
+        const data = response.data;
+        // Validate response shape
+        if (data && typeof data === 'object' && 
+            data.total && typeof data.total === 'object' &&
+            Array.isArray(data.accounts)) {
+          setStats(data);
+        } else {
+          console.error('Invalid storage stats response:', data);
+          setStats({
+            total: { used: 0, max: 0, free: 0, percentage: 0 },
+            accounts: []
+          });
+        }
       } catch (err) {
         console.error('Failed to fetch storage stats:', err);
+        setStats({
+          total: { used: 0, max: 0, free: 0, percentage: 0 },
+          accounts: []
+        });
       } finally {
         setLoading(false);
       }
