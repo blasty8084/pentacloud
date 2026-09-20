@@ -143,6 +143,55 @@ export class B2Service {
     }
   }
 
+  // General retry wrapper with exponential backoff for transient failures
+  // Retries on: network errors, 5xx, 429 - up to 3 attempts with backoff
+  async executeWithGeneralRetry(accountId, operation, maxAttempts = 3) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await operation(client);
+      } catch (err) {
+        lastError = err;
+        
+        // Determine if error is retryable
+        const isNetworkError = !err.response && (err.code === 'ECONNREFUSED' || 
+                                                  err.code === 'ETIMEDOUT' || 
+                                                  err.code === 'ENOTFOUND' ||
+                                                  err.code === 'ENETUNREACH' ||
+                                                  err.message?.includes('network') ||
+                                                  err.message?.includes('timeout') ||
+                                                  err.message?.includes('socket'));
+        
+        const isServerError = err.response?.status >= 500 && err.response?.status < 600;
+        const isRateLimited = err.response?.status === 429;
+        
+        const isRetryable = isNetworkError || isServerError || isRateLimited;
+        
+        if (!isRetryable || attempt === maxAttempts) {
+          throw err;
+        }
+        
+        // Exponential backoff: 500ms, 1000ms, 2000ms...
+        const delay = 500 * Math.pow(2, attempt - 1);
+        console.log(`B2 account ${accountId} attempt ${attempt} failed (${err.response?.status || err.code || err.message}), retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
+  }
+
+  // Combined upload wrapper: general retry -> upload URL retry
+  async executeUploadWithGeneralRetry(accountId, operation) {
+    return this.executeWithGeneralRetry(accountId, async (client) => {
+      return this.executeUploadWithRetry(accountId, operation);
+    });
+  }
+
   // Get or refresh download authorization token for an account
   async getDownloadAuthorization(accountId) {
     const client = this.clients.get(accountId);
@@ -314,7 +363,7 @@ async getAccountWithMostSpace() {
         await this.getUploadUrl(accountId);
       }
       
-      return this.executeUploadWithRetry(accountId, async (client) => {
+      return this.executeUploadWithGeneralRetry(accountId, async (client) => {
         const { b2, account, uploadUrl, uploadAuthToken } = client;
         const bucketId = account.bucket_id;
         if (!bucketId) {
