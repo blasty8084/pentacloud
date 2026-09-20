@@ -35,7 +35,14 @@ export class B2Service {
         account.bucket_endpoint = account.bucket_endpoint;
         account.region = this.parseEndpoint(account.bucket_endpoint);
         account.bucket_id = bucketId; // Store the real bucket ID for uploads
-        this.clients.set(account.id, { b2, account, uploadUrl: null, uploadAuthToken: null });
+        this.clients.set(account.id, { 
+          b2, 
+          account, 
+          uploadUrl: null, 
+          uploadAuthToken: null,
+          downloadAuthToken: null,
+          downloadAuthExpiresAt: 0
+        });
         initializedCount++;
         console.log(`B2 account "${account.name}" (${account.id}) initialized`);
       } catch (err) {
@@ -57,6 +64,9 @@ export class B2Service {
       // Invalidate cached upload URL since auth changed
       client.uploadUrl = null;
       client.uploadAuthToken = null;
+      // Invalidate cached download auth since main auth changed
+      client.downloadAuthToken = null;
+      client.downloadAuthExpiresAt = 0;
       console.log(`B2 account "${account.name}" (${account.id}) re-authorized`);
       return client;
     } catch (err) {
@@ -128,6 +138,83 @@ export class B2Service {
         await this.getUploadUrl(accountId);
         // Retry the operation once with fresh upload URL
         return await operation(this.clients.get(accountId));
+      }
+      throw err;
+    }
+  }
+
+  // Get or refresh download authorization token for an account
+  async getDownloadAuthorization(accountId) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    const { b2, account } = client;
+    const bucketId = account.bucket_id;
+    if (!bucketId) {
+      throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+    }
+    
+    // Request download authorization valid for 1 hour (3600 seconds)
+    const response = await b2.getDownloadAuthorization({
+      bucketId,
+      validDurationInSeconds: 3600,
+    });
+    
+    const { authorizationToken } = response.data;
+    const expiresAt = Date.now() + 3600 * 1000; // 1 hour from now
+    
+    client.downloadAuthToken = authorizationToken;
+    client.downloadAuthExpiresAt = expiresAt;
+    
+    console.log(`B2 account ${accountId} fetched new download authorization token`);
+    return authorizationToken;
+  }
+
+  // Get valid download authorization token (cached or fresh)
+  async getValidDownloadAuth(accountId) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    // Check if cached token is still valid (with 5 min buffer)
+    if (client.downloadAuthToken && client.downloadAuthExpiresAt > Date.now() + 5 * 60 * 1000) {
+      return client.downloadAuthToken;
+    }
+    
+    // Fetch new token
+    return await this.getDownloadAuthorization(accountId);
+  }
+
+  // Wrapper for download operations with download auth retry on expiry
+  async executeDownloadWithRetry(accountId, operation) {
+    const client = this.clients.get(accountId);
+    if (!client) throw new Error(`B2 account ${accountId} not found`);
+    
+    // Ensure we have a valid download auth token
+    const authToken = await this.getValidDownloadAuth(accountId);
+    
+    try {
+      return await operation(client, authToken);
+    } catch (err) {
+      // Check if it's an expired/invalid download authorization error
+      const isDownloadAuthExpired = err.response?.status === 401 || 
+                                    err.response?.status === 403 ||
+                                    (err.response?.data?.code && 
+                                     (err.response.data.code === 'bad_auth_token' ||
+                                      err.response.data.code === 'expired_auth_token')) ||
+                                    (err.message && 
+                                     (err.message.includes('401') || 
+                                      err.message.includes('403') ||
+                                      err.message.includes('bad_auth_token') ||
+                                      err.message.includes('expired_auth_token')));
+      
+      if (isDownloadAuthExpired) {
+        console.log(`B2 account ${accountId} download auth expired, fetching fresh token...`);
+        // Invalidate cached token
+        client.downloadAuthToken = null;
+        client.downloadAuthExpiresAt = 0;
+        // Fetch new token and retry once
+        const newAuthToken = await this.getDownloadAuthorization(accountId);
+        return await operation(this.clients.get(accountId), newAuthToken);
       }
       throw err;
     }
@@ -252,12 +339,13 @@ async getAccountWithMostSpace() {
   }
 
   async downloadFile(accountId, b2FileName) {
-    return this.executeWithRetry(accountId, async (client) => {
+    return this.executeDownloadWithRetry(accountId, async (client, authToken) => {
       const { b2, account } = client;
       const response = await b2.downloadFileByName({
         bucketName: account.bucket_name,
         fileName: b2FileName,
         responseType: 'stream',
+        authorization: authToken,
       });
       return response.data;
     });
