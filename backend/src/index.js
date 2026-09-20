@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -80,6 +81,21 @@ app.use('/api/shares', shareRoutes);
 app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File exceeds the 5GB size limit' });
+    }
+    return res.status(400).json({ error: err.message });
+  }
+  if (err.message?.includes('not allowed')) {
+    return res.status(400).json({ error: err.message });
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 async function start() {
   // Initialize database tables

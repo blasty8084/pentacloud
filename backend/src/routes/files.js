@@ -10,12 +10,37 @@ const router = Router();
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
+  // Images
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'image/tiff', 'image/bmp', 'image/x-icon', 'image/heic', 'image/heif',
+  // Documents - Office
   'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'application/vnd.oasis.opendocument.text', // .odt
+  'application/vnd.oasis.opendocument.spreadsheet', // .ods
+  'application/vnd.oasis.opendocument.presentation', // .odp
+  // Text & Code
   'text/plain', 'text/csv', 'text/markdown', 'text/html', 'text/css', 'text/javascript',
-  'application/json',
+  'text/typescript', 'text/xml', 'text/yaml',
+  'application/json', 'application/xml', 'application/yaml',
+  // Archives
   'application/zip', 'application/x-zip-compressed',
   'application/x-rar-compressed',
+  'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
+  // Video
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska',
+  'video/ogg', 'video/3gpp', 'video/3gpp2',
+  // Audio
+  'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/mp4', 'audio/aac',
+  'audio/x-m4a', 'audio/webm',
+  // Fonts
+  'font/woff', 'font/woff2', 'font/ttf', 'font/otf',
+  // Generic binary (fallback)
   'application/octet-stream',
 ];
 
