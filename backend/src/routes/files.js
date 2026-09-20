@@ -81,37 +81,38 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       }
     }
 
-    const account = await b2Service.getAccountWithMostSpace();
+    // Atomically reserve space and get the selected account
+    const account = await b2Service.reserveSpaceAndGetAccount(req.file.size);
     if (!account) {
       return res.status(507).json({ error: 'No B2 accounts configured or all full' });
     }
 
-    const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
-    const used = account.used_bytes || 0;
-    if (used + req.file.size > maxBytes) {
-      return res.status(507).json({ error: 'Selected B2 account has insufficient space' });
-    }
-
     const sanitizedName = sanitizeFileName(req.file.originalname);
-    const { b2FileId, b2FileName } = await b2Service.uploadFile(
-      account.id,
-      sanitizedName,
-      req.file.buffer,
-      req.file.mimetype
-    );
+    
+    try {
+      const { b2FileId, b2FileName } = await b2Service.uploadFile(
+        account.id,
+        sanitizedName,
+        req.file.buffer,
+        req.file.mimetype
+      );
 
-    const fileId = uuidv4();
-    await query(
-      `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
-    );
+      const fileId = uuidv4();
+      await query(
+        `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
+      );
 
-    // Increment used_bytes after successful file record creation
-    await b2Service.incrementUsedBytes(account.id, req.file.size);
-
-    const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
-    res.status(201).json(fileResult.rows[0]);
+      // Space was already reserved atomically, no need to increment again
+      const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
+      res.status(201).json(fileResult.rows[0]);
+    } catch (uploadErr) {
+      // B2 upload failed - rollback the reserved space
+      console.error('Upload to B2 failed, rolling back reserved space:', uploadErr);
+      await b2Service.rollbackReservedSpace(account.id, req.file.size);
+      throw uploadErr;
+    }
   } catch (err) {
     if (err.message?.includes('not allowed')) {
       return res.status(400).json({ error: err.message });

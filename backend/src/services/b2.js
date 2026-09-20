@@ -286,6 +286,44 @@ async getAccountWithMostSpace() {
     return null;
   }
 
+  // Atomically reserve space for an upload and return the selected account
+  // Returns the account if space was reserved, null if no account has enough space
+  async reserveSpaceAndGetAccount(fileSize) {
+    const fileSizeBytes = parseInt(fileSize, 10);
+    if (isNaN(fileSizeBytes) || fileSizeBytes <= 0) {
+      throw new Error('Invalid file size');
+    }
+
+    // Atomic UPDATE that selects and reserves space in one query
+    // Only accounts where used_bytes + fileSize <= max_size_gb * 1073741824 are eligible
+    // Ordered by used_bytes ASC to fill accounts sequentially
+    const result = await query(`
+      UPDATE b2_accounts 
+      SET used_bytes = used_bytes + $1 
+      WHERE id = (
+        SELECT id FROM b2_accounts 
+        WHERE used_bytes + $1 <= max_size_gb * 1073741824 
+        ORDER BY used_bytes ASC 
+        LIMIT 1
+      )
+      RETURNING *
+    `, [fileSizeBytes]);
+
+    if (result.rows.length === 0) {
+      return null; // No account has enough space
+    }
+
+    return result.rows[0];
+  }
+
+  // Rollback reserved space (used when upload fails)
+  async rollbackReservedSpace(accountId, bytes) {
+    await query(
+      'UPDATE b2_accounts SET used_bytes = GREATEST(used_bytes - $1, 0) WHERE id = $2',
+      [bytes, accountId]
+    );
+  }
+
   // Increment used_bytes for an account after successful upload
   async incrementUsedBytes(accountId, bytes) {
     await query(
