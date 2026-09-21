@@ -45,7 +45,7 @@ export const filesApi = {
     formData.append('file', file);
     if (folderId) formData.append('folderId', folderId);
     return api.post('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // Do NOT set Content-Type header - let axios/browser set it with boundary
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
