@@ -70,26 +70,32 @@ const upload = multer({
 router.use(authMiddleware);
 
 router.get('/', validators.listFiles, async (req, res) => {
-  const { folderId, search } = req.query;
-  let queryText = 'SELECT * FROM files WHERE user_id = $1';
-  const params = [req.user.id];
+  try {
+    const { folderId, search } = req.query;
+    let queryText = 'SELECT * FROM files WHERE user_id = $1';
+    const params = [req.user.id];
 
-  if (folderId) {
-    queryText += ' AND folder_id = $2';
-    params.push(folderId);
-  } else {
-    queryText += ' AND folder_id IS NULL';
+    if (folderId) {
+      queryText += ' AND folder_id = $2';
+      params.push(folderId);
+    } else {
+      queryText += ' AND folder_id IS NULL';
+    }
+
+    if (search) {
+      const paramIndex = params.length + 1;
+      queryText += ` AND name LIKE $${paramIndex}`;
+      params.push(`%${search}%`);
+    }
+
+    queryText += ' ORDER BY created_at DESC';
+    const result = await query(queryText, params);
+    res.json(result.rows);
+  } catch (err) {
+    const sanitizedMessage = sanitizeError(err);
+    console.error('[LIST FILES] Failed:', sanitizedMessage);
+    res.status(500).json({ error: 'Failed to list files' });
   }
-
-  if (search) {
-    const paramIndex = params.length + 1;
-    queryText += ` AND name LIKE $${paramIndex}`;
-    params.push(`%${search}%`);
-  }
-
-  queryText += ' ORDER BY created_at DESC';
-  const result = await query(queryText, params);
-  res.json(result.rows);
 });
 
 router.post('/upload', upload.single('file'), async (req, res) => {
@@ -132,19 +138,34 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       // Space was already reserved atomically, no need to increment again
       const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
       res.status(201).json(fileResult.rows[0]);
-    } catch (uploadErr) {
-      // B2 upload failed - rollback the reserved space
-      console.error('Upload to B2 failed, rolling back reserved space:', uploadErr);
-      await b2Service.rollbackReservedSpace(account.id, req.file.size);
-      throw uploadErr;
-    }
-  } catch (err) {
-    if (err.message?.includes('not allowed')) {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error('Upload error:', err);
-    res.status(500).json({ error: 'Upload failed' });
+    // Helper to sanitize error messages
+const sanitizeError = (err) => {
+  const message = err.message || String(err);
+  return message
+    .replace(/applicationKeyId[=:]\s*[^\s,}]+/gi, 'applicationKeyId=***')
+    .replace(/applicationKey[=:]\s*[^\s,}]+/gi, 'applicationKey=***')
+    .replace(/authorization[=:]\s*[^\s,}]+/gi, 'authorization=***')
+    .replace(/authToken[=:]\s*[^\s,}]+/gi, 'authToken=***')
+    .replace(/keyId[=:]\s*[^\s,}]+/gi, 'keyId=***')
+    .replace(/appKey[=:]\s*[^\s,}]+/gi, 'appKey=***')
+    .replace(/password[=:]\s*[^\s,}]+/gi, 'password=***')
+    .replace(/secret[=:]\s*[^\s,}]+/gi, 'secret=***');
+};
+
+  } catch (uploadErr) {
+    // B2 upload failed - rollback the reserved space
+    console.error(`[UPLOAD] B2 upload failed for file "${req.file.originalname}", rolling back reserved space:`, sanitizeError(uploadErr));
+    await b2Service.rollbackReservedSpace(account.id, req.file.size);
+    throw uploadErr;
   }
+} catch (err) {
+  const sanitizedMessage = sanitizeError(err);
+  if (err.message?.includes('not allowed')) {
+    return res.status(400).json({ error: err.message });
+  }
+  console.error(`[UPLOAD] Upload failed for file "${req.file?.originalname}":`, sanitizedMessage);
+  res.status(500).json({ error: 'Upload failed' });
+}
 });
 
 router.get('/:id/download', validators.deleteFile, async (req, res) => {
@@ -161,47 +182,54 @@ router.get('/:id/download', validators.deleteFile, async (req, res) => {
     res.setHeader('Content-Length', file.size);
     stream.pipe(res);
   } catch (err) {
-    console.error('Download error:', err);
+    const sanitizedMessage = sanitizeError(err);
+    console.error(`[DOWNLOAD] Failed for file ${req.params.id}:`, sanitizedMessage);
     res.status(500).json({ error: 'Download failed' });
   }
 });
 
 router.patch('/:id', validators.updateFile, async (req, res) => {
-  const fileResult = await query('SELECT * FROM files WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
-  if (fileResult.rows.length === 0) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  const { name, folderId } = req.body;
-  const updates = [];
-  const params = [];
-  let paramIndex = 1;
-
-  if (name !== undefined) {
-    const sanitizedName = sanitizeFileName(name);
-    updates.push(`name = $${paramIndex++}`);
-    params.push(sanitizedName);
-  }
-  if (folderId !== undefined) {
-    if (folderId) {
-      const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
-      if (folder.rows.length === 0) {
-        return res.status(404).json({ error: 'Target folder not found' });
-      }
+  try {
+    const fileResult = await query('SELECT * FROM files WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
     }
-    updates.push(`folder_id = $${paramIndex++}`);
-    params.push(folderId || null);
-  }
-  if (updates.length === 0) {
-    return res.status(400).json({ error: 'No valid fields to update' });
-  }
 
-  updates.push(`updated_at = NOW()`);
-  params.push(req.params.id);
+    const { name, folderId } = req.body;
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
 
-  await query(`UPDATE files SET ${updates.join(', ')} WHERE id = $${paramIndex}`, params);
-  const updatedResult = await query('SELECT * FROM files WHERE id = $1', [req.params.id]);
-  res.json(updatedResult.rows[0]);
+    if (name !== undefined) {
+      const sanitizedName = sanitizeFileName(name);
+      updates.push(`name = $${paramIndex++}`);
+      params.push(sanitizedName);
+    }
+    if (folderId !== undefined) {
+      if (folderId) {
+        const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
+        if (folder.rows.length === 0) {
+          return res.status(404).json({ error: 'Target folder not found' });
+        }
+      }
+      updates.push(`folder_id = $${paramIndex++}`);
+      params.push(folderId || null);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(req.params.id);
+
+    await query(`UPDATE files SET ${updates.join(', ')} WHERE id = $${paramIndex}`, params);
+    const updatedResult = await query('SELECT * FROM files WHERE id = $1', [req.params.id]);
+    res.json(updatedResult.rows[0]);
+  } catch (err) {
+    const sanitizedMessage = sanitizeError(err);
+    console.error(`[UPDATE] Failed for file ${req.params.id}:`, sanitizedMessage);
+    res.status(500).json({ error: 'Update failed' });
+  }
 });
 
 router.delete('/:id', validators.deleteFile, async (req, res) => {
@@ -220,7 +248,8 @@ router.delete('/:id', validators.deleteFile, async (req, res) => {
     
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete error:', err);
+    const sanitizedMessage = sanitizeError(err);
+    console.error(`[DELETE] Failed for file ${req.params.id}:`, sanitizedMessage);
     res.status(500).json({ error: 'Delete failed' });
   }
 });

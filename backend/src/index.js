@@ -82,18 +82,36 @@ app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+// Sanitize error messages to remove sensitive data
+const sanitizeError = (err) => {
+  const message = err.message || String(err);
+  return message
+    .replace(/applicationKeyId[=:]\s*[^\s,}]+/gi, 'applicationKeyId=***')
+    .replace(/applicationKey[=:]\s*[^\s,}]+/gi, 'applicationKey=***')
+    .replace(/authorization[=:]\s*[^\s,}]+/gi, 'authorization=***')
+    .replace(/authToken[=:]\s*[^\s,}]+/gi, 'authToken=***')
+    .replace(/keyId[=:]\s*[^\s,}]+/gi, 'keyId=***')
+    .replace(/appKey[=:]\s*[^\s,}]+/gi, 'appKey=***')
+    .replace(/password[=:]\s*[^\s,}]+/gi, 'password=***')
+    .replace(/secret[=:]\s*[^\s,}]+/gi, 'secret=***')
+    .replace(/postgresql:\/\/[^:]+:[^@]+@/gi, 'postgresql://***:***@');
+};
+
 // Global error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
+  const sanitizedMessage = sanitizeError(err);
+  console.error(`[GLOBAL ERROR] ${req.method} ${req.path}:`, sanitizedMessage);
+  
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File exceeds the 5GB size limit' });
     }
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: sanitizedMessage });
   }
   if (err.message?.includes('not allowed')) {
     return res.status(400).json({ error: err.message });
   }
+  // Don't leak internal error details to client
   res.status(500).json({ error: 'Internal server error' });
 });
 

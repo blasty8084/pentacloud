@@ -44,12 +44,27 @@ export class B2Service {
           downloadAuthExpiresAt: 0
         });
         initializedCount++;
-        console.log(`B2 account "${account.name}" (${account.id}) initialized`);
+        console.log(`[B2 INIT] Account "${account.name}" (${account.id}) initialized successfully`);
       } catch (err) {
-        console.warn(`Failed to initialize B2 account "${account.name}" (${account.id}): ${err.message}`);
+        console.error(`[B2 INIT] Failed to initialize account "${account.name}" (${account.id}): ${this.sanitizeError(err)}`);
       }
     }
-    console.log(`Initialized ${initializedCount}/${this.accounts.length} B2 accounts`);
+    console.log(`[B2 INIT] Initialized ${initializedCount}/${this.accounts.length} accounts`);
+  }
+
+  // Sanitize error messages to remove sensitive data (credentials, tokens, etc.)
+  sanitizeError(err) {
+    const message = err.message || String(err);
+    // Remove potential credentials from error messages
+    return message
+      .replace(/applicationKeyId[=:]\s*[^\s,}]+/gi, 'applicationKeyId=***')
+      .replace(/applicationKey[=:]\s*[^\s,}]+/gi, 'applicationKey=***')
+      .replace(/authorization[=:]\s*[^\s,}]+/gi, 'authorization=***')
+      .replace(/authToken[=:]\s*[^\s,}]+/gi, 'authToken=***')
+      .replace(/keyId[=:]\s*[^\s,}]+/gi, 'keyId=***')
+      .replace(/appKey[=:]\s*[^\s,}]+/gi, 'appKey=***')
+      .replace(/password[=:]\s*[^\s,}]+/gi, 'password=***')
+      .replace(/secret[=:]\s*[^\s,}]+/gi, 'secret=***');
   }
 
   async reauthorizeAccount(accountId) {
@@ -67,10 +82,10 @@ export class B2Service {
       // Invalidate cached download auth since main auth changed
       client.downloadAuthToken = null;
       client.downloadAuthExpiresAt = 0;
-      console.log(`B2 account "${account.name}" (${account.id}) re-authorized`);
+      console.log(`[B2 REAUTH] Account "${account.name}" (${account.id}) re-authorized successfully`);
       return client;
     } catch (err) {
-      console.error(`Failed to re-authorize B2 account "${account.name}" (${account.id}): ${err.message}`);
+      console.error(`[B2 REAUTH] Failed to re-authorize account "${account.name}" (${account.id}): ${this.sanitizeError(err)}`);
       throw err;
     }
   }
@@ -86,13 +101,19 @@ export class B2Service {
       throw new Error(`B2 account ${accountId} has no bucket ID stored`);
     }
     
-    const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
-    const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
-    
-    client.uploadUrl = uploadUrl;
-    client.uploadAuthToken = authorizationToken;
-    
-    return { uploadUrl, authorizationToken };
+    try {
+      const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
+      const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
+      
+      client.uploadUrl = uploadUrl;
+      client.uploadAuthToken = authorizationToken;
+      
+      console.log(`[B2 UPLOAD URL] Account "${account.name}" (${account.id}) fetched new upload URL`);
+      return { uploadUrl, authorizationToken };
+    } catch (err) {
+      console.error(`[B2 UPLOAD URL] Account "${account.name}" (${account.id}) failed to get upload URL: ${this.sanitizeError(err)}`);
+      throw err;
+    }
   }
 
   // Wrapper to execute B2 operations with automatic re-auth on 401
@@ -397,7 +418,7 @@ async getAccountWithMostSpace() {
     return this.executeWithRetry(accountId, async (client) => {
       // Ensure we have a valid upload URL
       if (!client.uploadUrl || !client.uploadAuthToken) {
-        console.log(`B2 account ${accountId} fetching initial upload URL...`);
+        console.log(`[B2 UPLOAD] Account ${accountId} fetching initial upload URL for file "${fileName}"`);
         await this.getUploadUrl(accountId);
       }
       
@@ -409,18 +430,26 @@ async getAccountWithMostSpace() {
         }
 
         const b2FileName = `${uuidv4()}-${fileName}`;
-        const uploadResponse = await b2.uploadFile({
-          uploadUrl,
-          uploadAuthToken,
-          fileName: b2FileName,
-          data: fileBuffer,
-          mime: mimeType,
-        });
+        console.log(`[B2 UPLOAD] Account "${account.name}" (${account.id}) uploading file "${fileName}" (${fileBuffer.length} bytes, ${mimeType})`);
+        
+        try {
+          const uploadResponse = await b2.uploadFile({
+            uploadUrl,
+            uploadAuthToken,
+            fileName: b2FileName,
+            data: fileBuffer,
+            mime: mimeType,
+          });
 
-        return {
-          b2FileId: uploadResponse.data.fileId,
-          b2FileName: uploadResponse.data.fileName,
-        };
+          console.log(`[B2 UPLOAD] Account "${account.name}" (${account.id}) uploaded "${fileName}" -> B2 fileId: ${uploadResponse.data.fileId}`);
+          return {
+            b2FileId: uploadResponse.data.fileId,
+            b2FileName: uploadResponse.data.fileName,
+          };
+        } catch (err) {
+          console.error(`[B2 UPLOAD] Account "${account.name}" (${account.id}) failed to upload "${fileName}": ${this.sanitizeError(err)}`);
+          throw err;
+        }
       });
     });
   }
@@ -428,32 +457,59 @@ async getAccountWithMostSpace() {
   async downloadFile(accountId, b2FileName) {
     return this.executeDownloadWithRetry(accountId, async (client, authToken) => {
       const { b2, account } = client;
-      const response = await b2.downloadFileByName({
-        bucketName: account.bucket_name,
-        fileName: b2FileName,
-        responseType: 'stream',
-        authorization: authToken,
-      });
-      return response.data;
+      console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloading file "${b2FileName}"`);
+      
+      try {
+        const response = await b2.downloadFileByName({
+          bucketName: account.bucket_name,
+          fileName: b2FileName,
+          responseType: 'stream',
+          authorization: authToken,
+        });
+        
+        console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloaded "${b2FileName}" successfully`);
+        return response.data;
+      } catch (err) {
+        console.error(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) failed to download "${b2FileName}": ${this.sanitizeError(err)}`);
+        throw err;
+      }
     });
   }
 
   async deleteFile(accountId, b2FileName, b2FileId) {
     return this.executeWithRetry(accountId, async (client) => {
-      const { b2 } = client;
-      await b2.deleteFileVersion({ fileName: b2FileName, fileId: b2FileId });
+      const { b2, account } = client;
+      console.log(`[B2 DELETE] Account "${account.name}" (${account.id}) deleting file "${b2FileName}" (b2FileId: ${b2FileId})`);
+      
+      try {
+        await b2.deleteFileVersion({ fileName: b2FileName, fileId: b2FileId });
+        console.log(`[B2 DELETE] Account "${account.name}" (${account.id}) deleted "${b2FileName}" successfully`);
+      } catch (err) {
+        console.error(`[B2 DELETE] Account "${account.name}" (${account.id}) failed to delete "${b2FileName}": ${this.sanitizeError(err)}`);
+        throw err;
+      }
     });
   }
 
   async getFileInfo(accountId, b2FileName) {
     return this.executeWithRetry(accountId, async (client) => {
       const { b2, account } = client;
-      const response = await b2.listFileNames({
-        bucketName: account.bucket_name,
-        prefix: b2FileName,
-        maxFileCount: 1,
-      });
-      return response.data.files[0] || null;
+      console.log(`[B2 FILE INFO] Account "${account.name}" (${account.id}) getting info for "${b2FileName}"`);
+      
+      try {
+        const response = await b2.listFileNames({
+          bucketName: account.bucket_name,
+          prefix: b2FileName,
+          maxFileCount: 1,
+        });
+        
+        const file = response.data.files[0] || null;
+        console.log(`[B2 FILE INFO] Account "${account.name}" (${account.id}) got info for "${b2FileName}": ${file ? 'found' : 'not found'}`);
+        return file;
+      } catch (err) {
+        console.error(`[B2 FILE INFO] Account "${account.name}" (${account.id}) failed to get info for "${b2FileName}": ${this.sanitizeError(err)}`);
+        throw err;
+      }
     });
   }
 }
