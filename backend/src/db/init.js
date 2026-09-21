@@ -70,7 +70,7 @@ async function initializeDatabase() {
   `);
 
   // Migrations for files table (idempotent)
-  await query(`ALTER TABLE files ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW;`);
+  await query(`ALTER TABLE files ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();`);
 
   // Shares table
   await query(`
