@@ -13,6 +13,10 @@ async function initializeDatabase() {
     );
   `);
 
+  // Migrations for users table (idempotent)
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255);`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';`);
+
   // B2 Accounts table
   await query(`
     CREATE TABLE IF NOT EXISTS b2_accounts (
@@ -28,6 +32,10 @@ async function initializeDatabase() {
     );
   `);
 
+  // Migrations for b2_accounts table (idempotent)
+  await query(`ALTER TABLE b2_accounts ADD COLUMN IF NOT EXISTS used_bytes BIGINT DEFAULT 0;`);
+  await query(`ALTER TABLE b2_accounts ADD COLUMN IF NOT EXISTS bucket_endpoint VARCHAR(255);`);
+
   // Folders table
   await query(`
     CREATE TABLE IF NOT EXISTS folders (
@@ -39,6 +47,9 @@ async function initializeDatabase() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);
+
+  // Migrations for folders table (idempotent)
+  await query(`ALTER TABLE folders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();`);
 
   // Files table
   await query(`
@@ -57,6 +68,9 @@ async function initializeDatabase() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);
+
+  // Migrations for files table (idempotent)
+  await query(`ALTER TABLE files ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW;`);
 
   // Shares table
   await query(`
