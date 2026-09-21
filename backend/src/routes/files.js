@@ -5,6 +5,7 @@ import b2Service from '../services/b2.js';
 import { authMiddleware } from '../middleware/auth.js';
 import validators from '../middleware/validate.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizeError } from '../utils/sanitizeError.js';
 
 const router = Router();
 
@@ -138,21 +139,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       // Space was already reserved atomically, no need to increment again
       const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
       res.status(201).json(fileResult.rows[0]);
-    // Helper to sanitize error messages
-const sanitizeError = (err) => {
-  const message = err.message || String(err);
-  return message
-    .replace(/applicationKeyId[=:]\s*[^\s,}]+/gi, 'applicationKeyId=***')
-    .replace(/applicationKey[=:]\s*[^\s,}]+/gi, 'applicationKey=***')
-    .replace(/authorization[=:]\s*[^\s,}]+/gi, 'authorization=***')
-    .replace(/authToken[=:]\s*[^\s,}]+/gi, 'authToken=***')
-    .replace(/keyId[=:]\s*[^\s,}]+/gi, 'keyId=***')
-    .replace(/appKey[=:]\s*[^\s,}]+/gi, 'appKey=***')
-    .replace(/password[=:]\s*[^\s,}]+/gi, 'password=***')
-    .replace(/secret[=:]\s*[^\s,}]+/gi, 'secret=***');
-};
-
-  } catch (uploadErr) {
+    } catch (uploadErr) {
     // B2 upload failed - rollback the reserved space
     console.error(`[UPLOAD] B2 upload failed for file "${req.file.originalname}", rolling back reserved space:`, sanitizeError(uploadErr));
     await b2Service.rollbackReservedSpace(account.id, req.file.size);

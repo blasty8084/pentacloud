@@ -6,6 +6,7 @@ import multer from 'multer';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { sanitizeError } from './utils/sanitizeError.js';
 
 dotenv.config();
 
@@ -25,6 +26,9 @@ import { b2Service as B2ServiceInstance } from './services/b2.js';
 const app = express();
 const PORT = process.env.PORT || 4000;
 const isProd = process.env.NODE_ENV === 'production';
+
+// Trust proxy (required for Render behind reverse proxy)
+app.set('trust proxy', 1);
 
 // CORS configuration - allow both local dev and production Vercel frontend
 const allowedOrigins = [
@@ -81,21 +85,6 @@ app.use('/api/shares', shareRoutes);
 app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
-
-// Sanitize error messages to remove sensitive data
-const sanitizeError = (err) => {
-  const message = err.message || String(err);
-  return message
-    .replace(/applicationKeyId[=:]\s*[^\s,}]+/gi, 'applicationKeyId=***')
-    .replace(/applicationKey[=:]\s*[^\s,}]+/gi, 'applicationKey=***')
-    .replace(/authorization[=:]\s*[^\s,}]+/gi, 'authorization=***')
-    .replace(/authToken[=:]\s*[^\s,}]+/gi, 'authToken=***')
-    .replace(/keyId[=:]\s*[^\s,}]+/gi, 'keyId=***')
-    .replace(/appKey[=:]\s*[^\s,}]+/gi, 'appKey=***')
-    .replace(/password[=:]\s*[^\s,}]+/gi, 'password=***')
-    .replace(/secret[=:]\s*[^\s,}]+/gi, 'secret=***')
-    .replace(/postgresql:\/\/[^:]+:[^@]+@/gi, 'postgresql://***:***@');
-};
 
 // Global error handling middleware
 app.use((err, req, res, next) => {
