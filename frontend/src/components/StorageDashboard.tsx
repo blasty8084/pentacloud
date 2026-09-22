@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { X, HardDrive, Database, TrendingUp, AlertCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { X, HardDrive, Database, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { storageApi } from '../api/client';
 
 interface StorageAccount {
@@ -26,40 +26,73 @@ interface StorageDashboardProps {
   onClose: () => void;
 }
 
+// Cache TTL: 30 seconds
+const CACHE_TTL = 30 * 1000;
+let statsCache: { data: StorageStats; timestamp: number } | null = null;
+
 export function StorageDashboard({ onClose }: StorageDashboardProps) {
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const isMounted = useRef(true);
 
   useEffect(() => {
+    isMounted.current = true;
     fetchStats();
+    return () => { isMounted.current = false; };
   }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async (force = false) => {
+    // Return cached data if valid and not forced
+    if (!force && statsCache && Date.now() - statsCache.timestamp < CACHE_TTL) {
+      if (isMounted.current) {
+        setStats(statsCache.data);
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
+      if (force) setRefreshing(true);
+      else setLoading(true);
+      
       const response = await storageApi.stats();
       const data = response.data;
       // Validate response shape
       if (data && typeof data === 'object' && 
           data.total && typeof data.total === 'object' &&
           Array.isArray(data.accounts)) {
-        setStats(data as StorageStats);
+        const validatedData = data as StorageStats;
+        statsCache = { data: validatedData, timestamp: Date.now() };
+        if (isMounted.current) {
+          setStats(validatedData);
+        }
       } else {
         console.error('Invalid storage stats response:', data);
-        setStats({
+        const fallback = {
           total: { used: 0, max: 0, free: 0, percentage: 0 },
           accounts: []
-        });
+        };
+        statsCache = { data: fallback, timestamp: Date.now() };
+        if (isMounted.current) setStats(fallback);
       }
     } catch (err) {
       console.error('Failed to fetch storage stats:', err);
-      setStats({
+      const fallback = {
         total: { used: 0, max: 0, free: 0, percentage: 0 },
         accounts: []
-      });
+      };
+      statsCache = { data: fallback, timestamp: Date.now() };
+      if (isMounted.current) setStats(fallback);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
+  }, []);
+
+  const handleRefresh = () => fetchStats(true);
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -80,7 +113,17 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
       <div className="bg-white rounded-t-2xl sm:rounded-xl p-6 max-w-2xl w-full mx-4 sm:mx-auto shadow-xl animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Storage Dashboard</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              className="p-1 text-gray-400 hover:text-gray-600"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
         </div>
         <div className="space-y-4">
           <div className="h-8 bg-gray-200 rounded animate-pulse" />
@@ -96,7 +139,17 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
       <div className="bg-white rounded-t-2xl sm:rounded-xl p-6 max-w-2xl w-full mx-4 sm:mx-auto shadow-xl animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Storage Dashboard</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              className="p-1 text-gray-400 hover:text-gray-600"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
         </div>
         <p className="text-gray-500">Failed to load storage stats</p>
       </div>
@@ -107,7 +160,17 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
     <div className="bg-white rounded-t-2xl sm:rounded-xl p-6 max-w-2xl w-full mx-4 sm:mx-auto shadow-xl animate-slide-up max-h-[80vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold">Storage Dashboard</h2>
-        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="p-1 text-gray-400 hover:text-gray-600"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
       </div>
 
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-6 text-white mb-6">
