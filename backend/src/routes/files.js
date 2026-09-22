@@ -87,6 +87,120 @@ const upload = multer({
   },
 });
 
+router.use(authMiddleware);
+
+// List files with folder filtering and search
+router.get('/', validators.listFiles, async (req, res) => {
+  try {
+    const { folderId, search } = req.query;
+    let queryText = 'SELECT * FROM files WHERE user_id = $1';
+    const params = [req.user.id];
+
+    if (folderId) {
+      queryText += ' AND folder_id = $2';
+      params.push(folderId);
+    } else {
+      queryText += ' AND folder_id IS NULL';
+    }
+
+    if (search) {
+      const paramIndex = params.length + 1;
+      queryText += ` AND name LIKE $${paramIndex}`;
+      params.push(`%${search}%`);
+    }
+
+    queryText += ' ORDER BY created_at DESC';
+    const result = await query(queryText, params);
+    res.json(result.rows);
+  } catch (err) {
+    const sanitizedMessage = sanitizeError(err);
+    console.error('[LIST FILES] Failed:', sanitizedMessage);
+    res.status(500).json({ error: 'Failed to list files' });
+  }
+});
+
+// Upload file (handles both small and large files)
+router.post('/upload', upload.single('file'), async (req, res) => {
+  const tempFilePath = req.file?.path;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const { folderId } = req.body;
+    if (folderId) {
+      const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
+      if (folder.rows.length === 0) {
+        cleanupTempFile(tempFilePath);
+        return res.status(404).json({ error: 'Folder not found' });
+      }
+    }
+
+    // Atomically reserve space and get the selected account
+    const account = await b2Service.reserveSpaceAndGetAccount(req.file.size);
+    if (!account) {
+      cleanupTempFile(tempFilePath);
+      return res.status(507).json({ error: 'No B2 accounts configured or all full' });
+    }
+
+    const sanitizedName = sanitizeFileName(req.file.originalname);
+    const isLargeFile = req.file.size >= LARGE_FILE_THRESHOLD;
+    
+    try {
+      let b2FileId, b2FileName;
+      
+      if (isLargeFile) {
+        console.log(`[UPLOAD] Large file detected (${req.file.size} bytes), using multipart upload`);
+        const result = await b2Service.uploadLargeFile(
+          account.id,
+          sanitizedName,
+          tempFilePath,
+          req.file.size,
+          req.file.mimetype
+        );
+        b2FileId = result.b2FileId;
+        b2FileName = result.b2FileName;
+      } else {
+        // For small files, read into memory and use simple upload
+        const fileBuffer = fs.readFileSync(tempFilePath);
+        const result = await b2Service.uploadFile(
+          account.id,
+          sanitizedName,
+          fileBuffer,
+          req.file.mimetype
+        );
+        b2FileId = result.b2FileId;
+        b2FileName = result.b2FileName;
+      }
+
+      const fileId = uuidv4();
+      await query(
+        `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
+      );
+
+      // Space was already reserved atomically, no need to increment again
+      cleanupTempFile(tempFilePath);
+      const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
+      res.status(201).json(fileResult.rows[0]);
+    } catch (uploadErr) {
+      // B2 upload failed - rollback the reserved space
+      console.error(`[UPLOAD] B2 upload failed for file "${req.file.originalname}", rolling back reserved space:`, sanitizeError(uploadErr));
+      await b2Service.rollbackReservedSpace(account.id, req.file.size);
+      throw uploadErr;
+    }
+  } catch (err) {
+    cleanupTempFile(tempFilePath);
+    const sanitizedMessage = sanitizeError(err);
+    if (err.message?.includes('not allowed')) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error(`[UPLOAD] Upload failed for file "${req.file?.originalname}":`, sanitizedMessage);
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
 // Helper to clean up temp file
 const cleanupTempFile = (filePath) => {
   if (filePath && fs.existsSync(filePath)) {
