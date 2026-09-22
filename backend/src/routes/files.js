@@ -6,10 +6,13 @@ import { authMiddleware } from '../middleware/auth.js';
 import validators from '../middleware/validate.js';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeError } from '../utils/sanitizeError.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
+const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
 const ALLOWED_MIME_TYPES = [
   // Images
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -57,8 +60,24 @@ function validateFileType(mimetype) {
   return ALLOWED_MIME_TYPES.includes(mimetype);
 }
 
+// Use disk storage for all files to handle large files without memory issues
+const TEMP_UPLOAD_DIR = path.join(process.cwd(), 'tmp', 'uploads');
+if (!fs.existsSync(TEMP_UPLOAD_DIR)) {
+  fs.mkdirSync(TEMP_UPLOAD_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, TEMP_UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${uniqueSuffix}-${sanitizeFileName(file.originalname)}`);
+  },
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (!validateFileType(file.mimetype)) {
@@ -68,92 +87,16 @@ const upload = multer({
   },
 });
 
-router.use(authMiddleware);
-
-router.get('/', validators.listFiles, async (req, res) => {
-  try {
-    const { folderId, search } = req.query;
-    let queryText = 'SELECT * FROM files WHERE user_id = $1';
-    const params = [req.user.id];
-
-    if (folderId) {
-      queryText += ' AND folder_id = $2';
-      params.push(folderId);
-    } else {
-      queryText += ' AND folder_id IS NULL';
-    }
-
-    if (search) {
-      const paramIndex = params.length + 1;
-      queryText += ` AND name LIKE $${paramIndex}`;
-      params.push(`%${search}%`);
-    }
-
-    queryText += ' ORDER BY created_at DESC';
-    const result = await query(queryText, params);
-    res.json(result.rows);
-  } catch (err) {
-    const sanitizedMessage = sanitizeError(err);
-    console.error('[LIST FILES] Failed:', sanitizedMessage);
-    res.status(500).json({ error: 'Failed to list files' });
-  }
-});
-
-router.post('/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file provided' });
-    }
-
-    const { folderId } = req.body;
-    if (folderId) {
-      const folder = await query('SELECT id FROM folders WHERE id = $1 AND user_id = $2', [folderId, req.user.id]);
-      if (folder.rows.length === 0) {
-        return res.status(404).json({ error: 'Folder not found' });
-      }
-    }
-
-    // Atomically reserve space and get the selected account
-    const account = await b2Service.reserveSpaceAndGetAccount(req.file.size);
-    if (!account) {
-      return res.status(507).json({ error: 'No B2 accounts configured or all full' });
-    }
-
-    const sanitizedName = sanitizeFileName(req.file.originalname);
-    
+// Helper to clean up temp file
+const cleanupTempFile = (filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
     try {
-      const { b2FileId, b2FileName } = await b2Service.uploadFile(
-        account.id,
-        sanitizedName,
-        req.file.buffer,
-        req.file.mimetype
-      );
-
-      const fileId = uuidv4();
-      await query(
-        `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
-      );
-
-      // Space was already reserved atomically, no need to increment again
-      const fileResult = await query('SELECT * FROM files WHERE id = $1', [fileId]);
-      res.status(201).json(fileResult.rows[0]);
-    } catch (uploadErr) {
-    // B2 upload failed - rollback the reserved space
-    console.error(`[UPLOAD] B2 upload failed for file "${req.file.originalname}", rolling back reserved space:`, sanitizeError(uploadErr));
-    await b2Service.rollbackReservedSpace(account.id, req.file.size);
-    throw uploadErr;
+      fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error(`[UPLOAD] Failed to cleanup temp file ${filePath}:`, sanitizeError(err));
+    }
   }
-} catch (err) {
-  const sanitizedMessage = sanitizeError(err);
-  if (err.message?.includes('not allowed')) {
-    return res.status(400).json({ error: err.message });
-  }
-  console.error(`[UPLOAD] Upload failed for file "${req.file?.originalname}":`, sanitizedMessage);
-  res.status(500).json({ error: 'Upload failed' });
-}
-});
+};
 
 router.get('/:id/download', validators.deleteFile, async (req, res) => {
   try {

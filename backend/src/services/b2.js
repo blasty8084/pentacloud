@@ -455,6 +455,111 @@ async getAccountWithMostSpace() {
     });
   }
 
+  // Large file upload (multipart) for files >= 100MB
+  async uploadLargeFile(accountId, fileName, filePath, fileSize, mimeType, onProgress) {
+    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+    const PART_SIZE = 100 * 1024 * 1024; // 100MB per part
+    
+    return this.executeWithRetry(accountId, async (client) => {
+      const { b2, account } = client;
+      const bucketId = account.bucket_id;
+      if (!bucketId) {
+        throw new Error(`B2 account ${accountId} has no bucket ID stored`);
+      }
+
+      const b2FileName = `${uuidv4()}-${fileName}`;
+      console.log(`[B2 LARGE UPLOAD] Account "${account.name}" (${account.id}) starting large file upload "${fileName}" (${fileSize} bytes)`);
+      
+      // Start large file
+      const startResponse = await b2.startLargeFile({
+        bucketId,
+        fileName: b2FileName,
+        contentType: mimeType,
+      });
+      
+      const fileId = startResponse.data.fileId;
+      console.log(`[B2 LARGE UPLOAD] Started large file: ${fileId}`);
+      
+      try {
+        const parts = [];
+        const totalParts = Math.ceil(fileSize / PART_SIZE);
+        let uploadedBytes = 0;
+        
+        // Read file in chunks and upload each part
+        const fs = await import('fs');
+        const fileHandle = await fs.promises.open(filePath, 'r');
+        
+        try {
+          for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+            const startByte = (partNumber - 1) * PART_SIZE;
+            const endByte = Math.min(startByte + PART_SIZE, fileSize);
+            const partSize = endByte - startByte;
+            
+            // Get upload part URL
+            const partUrlResponse = await b2.getUploadPartUrl({ fileId });
+            const { uploadUrl, authorizationToken } = partUrlResponse.data;
+            
+            // Read chunk
+            const buffer = Buffer.alloc(partSize);
+            await fileHandle.read(buffer, 0, partSize, startByte);
+            
+            // Upload part with retry
+            let partSha1;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const partResponse = await b2.uploadPart({
+                  uploadUrl,
+                  uploadAuthToken: authorizationToken,
+                  partNumber,
+                  data: buffer,
+                });
+                partSha1 = partResponse.data.contentSha1;
+                break;
+              } catch (err) {
+                if (attempt === 3) throw err;
+                console.log(`[B2 LARGE UPLOAD] Part ${partNumber} attempt ${attempt} failed, retrying...`);
+                await new Promise(r => setTimeout(r, 500 * attempt));
+              }
+            }
+            
+            parts.push({ partNumber, contentSha1: partSha1 });
+            uploadedBytes += partSize;
+            
+            if (onProgress) {
+              onProgress({ loaded: uploadedBytes, total: fileSize, part: partNumber, totalParts });
+            }
+            
+            console.log(`[B2 LARGE UPLOAD] Part ${partNumber}/${totalParts} uploaded (${uploadedBytes}/${fileSize} bytes)`);
+          }
+        } finally {
+          await fileHandle.close();
+        }
+        
+        // Finish large file
+        const finishResponse = await b2.finishLargeFile({
+          fileId,
+          partSha1Array: parts.map(p => p.contentSha1),
+        });
+        
+        console.log(`[B2 LARGE UPLOAD] Account "${account.name}" (${account.id}) finished large file "${fileName}" -> B2 fileId: ${fileId}`);
+        
+        return {
+          b2FileId: fileId,
+          b2FileName: b2FileName,
+        };
+      } catch (err) {
+        // Cancel large file on failure
+        try {
+          await b2.cancelLargeFile({ fileId });
+        } catch (cancelErr) {
+          console.error(`[B2 LARGE UPLOAD] Failed to cancel large file ${fileId}: ${this.sanitizeError(cancelErr)}`);
+        }
+        console.error(`[B2 LARGE UPLOAD] Account "${account.name}" (${account.id}) failed to upload large file "${fileName}": ${this.sanitizeError(err)}`);
+        throw err;
+      }
+    });
+  }
+
   async downloadFile(accountId, b2FileName) {
     return this.executeDownloadWithRetry(accountId, async (client, authToken) => {
       const { b2, account } = client;
