@@ -318,12 +318,13 @@ async getAccountWithMostSpace() {
     // Atomic UPDATE that selects and reserves space in one query
     // Only accounts where used_bytes + fileSize <= max_size_gb * 1073741824 are eligible
     // Ordered by used_bytes ASC to fill accounts sequentially
+    // Cast max_size_gb to bigint to prevent integer overflow (max 10GB = 10737418240 > INT max 2147483647)
     const result = await query(`
       UPDATE b2_accounts 
       SET used_bytes = used_bytes + $1 
       WHERE id = (
         SELECT id FROM b2_accounts 
-        WHERE used_bytes + $1 <= max_size_gb * 1073741824 
+        WHERE used_bytes + $1 <= (max_size_gb::bigint * 1073741824) 
         ORDER BY used_bytes ASC 
         LIMIT 1
       )
