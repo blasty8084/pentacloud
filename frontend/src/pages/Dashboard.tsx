@@ -207,9 +207,9 @@ export default function Dashboard() {
     return () => window.removeEventListener('upload-progress', handleUploadProgress as EventListener);
   }, []);
 
-  const handleFileUpload = async (file: globalThis.File, folderId?: string) => {
+  const handleFileUpload = async (file: globalThis.File, folderId?: string, onProgress?: (percent: number) => void) => {
     try {
-      await filesApi.upload(file, folderId);
+      await filesApi.upload(file, folderId, onProgress);
       fetchFiles();
     } catch (err) {
       console.error('Upload failed:', err);

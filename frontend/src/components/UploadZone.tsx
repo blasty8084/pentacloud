@@ -5,7 +5,7 @@ import { useUpload } from '../context/UploadContext';
 import { formatBytes } from '../utils/format';
 
 interface UploadZoneProps {
-  onUpload: (file: File, folderId?: string) => Promise<void>;
+  onUpload: (file: File, folderId?: string, onProgress?: (percent: number) => void) => Promise<void>;
   folderId?: string;
   disabled?: boolean;
 }
@@ -50,46 +50,13 @@ export function UploadZone({ onUpload, folderId, disabled }: UploadZoneProps) {
       const fileId = addUpload(file);
       setPreviewFiles(prev => [...prev, file]);
       try {
-        const progressEvent = new CustomEvent('upload-progress', { detail: { fileId, progress: 0 } });
-        window.dispatchEvent(progressEvent);
-
-        const xhr = new XMLHttpRequest();
-        const formData = new FormData();
-        formData.append('file', file);
-        if (folderId) formData.append('folderId', folderId);
-
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const progress = Math.round((e.loaded * 100) / e.total);
-            updateProgress(fileId, progress);
-            const event = new CustomEvent('upload-progress', { detail: { fileId, progress } });
-            window.dispatchEvent(event);
-          }
+        await onUpload(file, folderId, (percent) => {
+          updateProgress(fileId, percent);
         });
-
-        await new Promise<void>((resolve, reject) => {
-          xhr.open('POST', `${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/files/upload`, true);
-          const token = localStorage.getItem('token');
-          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              completeUpload(fileId);
-              resolve();
-            } else {
-              errorUpload(fileId, `Upload failed: ${xhr.statusText}`);
-              reject(new Error(xhr.statusText));
-            }
-          };
-          xhr.onerror = () => {
-            errorUpload(fileId, 'Network error');
-            reject(new Error('Network error'));
-          };
-          xhr.send(formData);
-        });
-
-        await onUpload(file, folderId);
-      } catch (err) {
+        completeUpload(fileId);
+      } catch (err: any) {
         console.error('Upload error:', err);
+        errorUpload(fileId, err.response?.data?.error || 'Upload failed');
       } finally {
         setTimeout(() => removeUpload(fileId), 3000);
       }

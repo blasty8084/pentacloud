@@ -40,16 +40,16 @@ export const authApi = {
 export const filesApi = {
   list: (params?: { folderId?: string; search?: string }) =>
     api.get('/files', { params }),
-  upload: (file: File, folderId?: string) => {
+  upload: (file: File, folderId?: string, onProgress?: (percent: number) => void) => {
     const formData = new FormData();
     formData.append('file', file);
     if (folderId) formData.append('folderId', folderId);
     return api.post('/files/upload', formData, {
       // Do NOT set Content-Type header - let axios/browser set it with boundary
       onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
+        if (progressEvent.total && onProgress) {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          return percent;
+          onProgress(percent);
         }
       },
     });
