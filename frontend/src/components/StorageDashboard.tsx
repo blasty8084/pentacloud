@@ -10,6 +10,9 @@ interface StorageAccount {
   max: number;
   free: number;
   percentage: number;
+  health?: 'healthy' | 'degraded' | 'unhealthy';
+  consecutiveFailures?: number;
+  available?: boolean;
 }
 
 interface StorageStats {
@@ -106,6 +109,36 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
     if (percentage >= 90) return 'bg-red-500';
     if (percentage >= 70) return 'bg-yellow-500';
     return 'bg-blue-500';
+  };
+
+  const getHealthIndicator = (account: StorageAccount) => {
+    const health = account.health || 'healthy';
+    const available = account.available !== false;
+    
+    if (!available || health === 'unhealthy') {
+      return (
+        <span className="flex items-center gap-1 text-xs text-red-500" title="Unhealthy - excluded from uploads">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span>Unhealthy</span>
+        </span>
+      );
+    }
+    
+    if (health === 'degraded') {
+      return (
+        <span className="flex items-center gap-1 text-xs text-yellow-500" title={`Degraded (${account.consecutiveFailures || 0} recent failures)`}>
+          <span className="w-2 h-2 rounded-full bg-yellow-500" />
+          <span>Degraded</span>
+        </span>
+      );
+    }
+    
+    return (
+      <span className="flex items-center gap-1 text-xs text-green-500" title="Healthy">
+        <span className="w-2 h-2 rounded-full bg-green-500" />
+        <span>Healthy</span>
+      </span>
+    );
   };
 
   if (loading) {
@@ -210,9 +243,12 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
                   <p className="text-xs text-gray-500">{account.bucketName}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-medium text-gray-900">{account.percentage}%</p>
-                <p className="text-xs text-gray-500">{formatBytes(account.used)} / {formatBytes(account.max)}</p>
+              <div className="flex items-center gap-2">
+                {getHealthIndicator(account)}
+                <div className="text-right">
+                  <p className="font-medium text-gray-900">{account.percentage}%</p>
+                  <p className="text-xs text-gray-500">{formatBytes(account.used)} / {formatBytes(account.max)}</p>
+                </div>
               </div>
             </div>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">

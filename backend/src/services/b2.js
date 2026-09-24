@@ -6,6 +6,69 @@ export class B2Service {
   constructor() {
     this.clients = new Map();
     this.accounts = [];
+    // In-memory account health tracking (ephemeral, resets on restart)
+    this.accountHealth = new Map(); // { accountId: { status: 'healthy'|'degraded'|'unhealthy', consecutiveFailures: number, lastFailureAt: number } }
+  }
+
+  // Account health constants
+  static HEALTHY = 'healthy';
+  static DEGRADED = 'degraded';
+  static UNHEALTHY = 'unhealthy';
+  
+  static MAX_CONSECUTIVE_FAILURES = 3;
+  static UNHEALTHY_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+  static MAX_FAILOVER_ACCOUNTS = 3;
+
+  // Get account health status
+  getAccountHealth(accountId) {
+    return this.accountHealth.get(accountId) || { 
+      status: B2Service.HEALTHY, 
+      consecutiveFailures: 0, 
+      lastFailureAt: 0 
+    };
+  }
+
+  // Update account health after a failure
+  recordAccountFailure(accountId) {
+    const health = this.getAccountHealth(accountId);
+    health.consecutiveFailures += 1;
+    health.lastFailureAt = Date.now();
+    
+    if (health.consecutiveFailures >= B2Service.MAX_CONSECUTIVE_FAILURES) {
+      health.status = B2Service.UNHEALTHY;
+      console.log(`[B2 HEALTH] Account ${accountId} marked UNHEALTHY after ${health.consecutiveFailures} consecutive failures`);
+    } else if (health.consecutiveFailures >= 1) {
+      health.status = B2Service.DEGRADED;
+      console.log(`[B2 HEALTH] Account ${accountId} marked DEGRADED (${health.consecutiveFailures} failures)`);
+    }
+    
+    this.accountHealth.set(accountId, health);
+  }
+
+  // Reset account health on success (self-healing)
+  recordAccountSuccess(accountId) {
+    const health = this.getAccountHealth(accountId);
+    if (health.consecutiveFailures > 0) {
+      console.log(`[B2 HEALTH] Account ${accountId} recovered - resetting health (was ${health.status}, ${health.consecutiveFailures} failures)`);
+    }
+    health.status = B2Service.HEALTHY;
+    health.consecutiveFailures = 0;
+    health.lastFailureAt = 0;
+    this.accountHealth.set(accountId, health);
+  }
+
+  // Check if account is available for selection (not in unhealthy cooldown)
+  isAccountAvailable(accountId) {
+    const health = this.getAccountHealth(accountId);
+    if (health.status !== B2Service.UNHEALTHY) return true;
+    
+    // Check if cooldown has expired
+    if (Date.now() - health.lastFailureAt > B2Service.UNHEALTHY_COOLDOWN_MS) {
+      // Auto-recover after cooldown
+      this.recordAccountSuccess(accountId);
+      return true;
+    }
+    return false;
   }
 
   // Parse endpoint to extract region if needed
@@ -296,6 +359,8 @@ async getAccountWithMostSpace() {
     const accounts = result.rows;
     
     for (const account of accounts) {
+      if (!this.isAccountAvailable(account.id)) continue;
+      
       const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
       const freeSpace = maxBytes - (account.used_bytes || 0);
       
@@ -309,27 +374,35 @@ async getAccountWithMostSpace() {
 
   // Atomically reserve space for an upload and return the selected account
   // Returns the account if space was reserved, null if no account has enough space
-  async reserveSpaceAndGetAccount(fileSize) {
+  // excludeAccountIds: array of account IDs to skip (for failover)
+  async reserveSpaceAndGetAccount(fileSize, excludeAccountIds = []) {
     const fileSizeBytes = parseInt(fileSize, 10);
     if (isNaN(fileSizeBytes) || fileSizeBytes <= 0) {
       throw new Error('Invalid file size');
     }
 
+    // Build the exclusion clause
+    const excludeClause = excludeAccountIds.length > 0 
+      ? `AND id NOT IN (${excludeAccountIds.map((_, i) => `$${i + 2}`).join(', ')})`
+      : '';
+
     // Atomic UPDATE that selects and reserves space in one query
     // Only accounts where used_bytes + fileSize <= max_size_gb * 1073741824 are eligible
     // Ordered by used_bytes ASC to fill accounts sequentially
     // Cast max_size_gb to bigint to prevent integer overflow (max 10GB = 10737418240 > INT max 2147483647)
+    const params = [fileSizeBytes, ...excludeAccountIds];
     const result = await query(`
       UPDATE b2_accounts 
       SET used_bytes = used_bytes + $1 
       WHERE id = (
         SELECT id FROM b2_accounts 
-        WHERE used_bytes + $1 <= (max_size_gb::bigint * 1073741824) 
+        WHERE used_bytes + $1 <= (max_size_gb::bigint * 1073741824)
+        ${excludeClause}
         ORDER BY used_bytes ASC 
         LIMIT 1
       )
       RETURNING *
-    `, [fileSizeBytes]);
+    `, params);
 
     if (result.rows.length === 0) {
       return null; // No account has enough space
@@ -352,6 +425,8 @@ async getAccountWithMostSpace() {
       'UPDATE b2_accounts SET used_bytes = used_bytes + $1 WHERE id = $2',
       [bytes, accountId]
     );
+    // Record success for health tracking
+    this.recordAccountSuccess(accountId);
   }
 
   // Decrement used_bytes for an account after successful delete
@@ -392,6 +467,9 @@ async getAccountWithMostSpace() {
       totalUsed += used;
       totalMax += maxBytes;
       
+      const health = this.getAccountHealth(account.id);
+      const isAvailable = this.isAccountAvailable(account.id);
+      
       stats.push({
         id: account.id,
         name: account.name,
@@ -401,6 +479,9 @@ async getAccountWithMostSpace() {
         max: maxBytes,
         free: maxBytes - used,
         percentage: maxBytes > 0 ? Math.round((used / maxBytes) * 100) : 0,
+        health: health.status,
+        consecutiveFailures: health.consecutiveFailures,
+        available: isAvailable,
       });
     }
     
@@ -453,6 +534,69 @@ async getAccountWithMostSpace() {
         }
       });
     });
+  }
+
+  // Upload with account-level failover
+  // Tries up to MAX_FAILOVER_ACCOUNTS different accounts if persistent failures occur
+  async uploadFileWithFailover(fileName, fileBuffer, mimeType, fileSize) {
+    let triedAccountIds = [];
+    let lastError;
+    
+    for (let failoverAttempt = 1; failoverAttempt <= B2Service.MAX_FAILOVER_ACCOUNTS; failoverAttempt++) {
+      // Reserve space on the next best available account
+      const account = await this.reserveSpaceAndGetAccount(fileSize, triedAccountIds);
+      if (!account) {
+        // No more accounts with space
+        throw new Error('No B2 accounts available with sufficient space');
+      }
+      
+      console.log(`[B2 FAILOVER] Attempt ${failoverAttempt}/${B2Service.MAX_FAILOVER_ACCOUNTS}: Selected account "${account.name}" (${account.id})`);
+      
+      try {
+        const result = await this.uploadFile(account.id, fileName, fileBuffer, mimeType);
+        // Success - record health and return
+        this.recordAccountSuccess(account.id);
+        return { ...result, accountId: account.id };
+      } catch (err) {
+        lastError = err;
+        triedAccountIds.push(account.id);
+        
+        // Check if this is a persistent failure (not transient/retryable)
+        const isRetryable = !err.response && (err.code === 'ECONNREFUSED' || 
+                                                err.code === 'ETIMEDOUT' || 
+                                                err.code === 'ENOTFOUND' ||
+                                                err.code === 'ENETUNREACH' ||
+                                                err.message?.includes('network') ||
+                                                err.message?.includes('timeout') ||
+                                                err.message?.includes('socket')) ||
+                            err.response?.status >= 500 || 
+                            err.response?.status === 429;
+        
+        if (isRetryable) {
+          // Transient error - the inner retry logic already handled retries
+          // If we're here, all retries exhausted - this is a persistent failure
+          console.log(`[B2 FAILOVER] Account "${account.name}" (${account.id}) failed after retries (persistent error): ${this.sanitizeError(err)}`);
+        } else {
+          // Non-retryable error (4xx, auth failure, etc.)
+          console.log(`[B2 FAILOVER] Account "${account.name}" (${account.id}) failed with non-retryable error: ${this.sanitizeError(err)}`);
+        }
+        
+        // Record failure for health tracking
+        this.recordAccountFailure(account.id);
+        
+        // Rollback reserved space on failed account
+        await this.rollbackReservedSpace(account.id, fileSize);
+        
+        if (failoverAttempt < B2Service.MAX_FAILOVER_ACCOUNTS) {
+          console.log(`[B2 FAILOVER] Failing over to next account...`);
+          continue;
+        }
+        // Max failover attempts reached
+        throw lastError;
+      }
+    }
+    
+    throw lastError;
   }
 
   // Large file upload (multipart) for files >= 100MB

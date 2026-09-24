@@ -119,7 +119,7 @@ router.get('/', validators.listFiles, async (req, res) => {
   }
 });
 
-// Upload file (handles both small and large files)
+// Upload file (handles both small and large files with account-level failover)
 router.post('/upload', upload.single('file'), async (req, res) => {
   const tempFilePath = req.file?.path;
   try {
@@ -136,48 +136,79 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       }
     }
 
-    // Atomically reserve space and get the selected account
-    const account = await b2Service.reserveSpaceAndGetAccount(req.file.size);
-    if (!account) {
-      cleanupTempFile(tempFilePath);
-      return res.status(507).json({ error: 'No B2 accounts configured or all full' });
-    }
-
     const sanitizedName = sanitizeFileName(req.file.originalname);
     const isLargeFile = req.file.size >= LARGE_FILE_THRESHOLD;
     
     try {
-      let b2FileId, b2FileName;
+      let b2FileId, b2FileName, selectedAccount;
       
       if (isLargeFile) {
-        console.log(`[UPLOAD] Large file detected (${req.file.size} bytes), using multipart upload`);
-        const result = await b2Service.uploadLargeFile(
-          account.id,
-          sanitizedName,
-          tempFilePath,
-          req.file.size,
-          req.file.mimetype
-        );
-        b2FileId = result.b2FileId;
-        b2FileName = result.b2FileName;
+        console.log(`[UPLOAD] Large file detected (${req.file.size} bytes), using multipart upload with failover`);
+        // For large files, we need a custom approach - reserve space first, then upload
+        // Try accounts with failover logic
+        let triedAccountIds = [];
+        let uploadResult = null;
+        let uploadError = null;
+        
+        for (let failoverAttempt = 1; failoverAttempt <= 3; failoverAttempt++) {
+          const account = await b2Service.reserveSpaceAndGetAccount(req.file.size, triedAccountIds);
+          if (!account) {
+            uploadError = new Error('No B2 accounts configured or all full');
+            break;
+          }
+          
+          console.log(`[UPLOAD FAILOVER] Large file attempt ${failoverAttempt}: Account "${account.name}" (${account.id})`);
+          selectedAccount = account;
+          
+          try {
+            const result = await b2Service.uploadLargeFile(
+              account.id,
+              sanitizedName,
+              tempFilePath,
+              req.file.size,
+              req.file.mimetype
+            );
+            uploadResult = result;
+            b2Service.recordAccountSuccess(account.id);
+            break;
+          } catch (err) {
+            uploadError = err;
+            triedAccountIds.push(account.id);
+            b2Service.recordAccountFailure(account.id);
+            await b2Service.rollbackReservedSpace(account.id, req.file.size);
+            
+            if (failoverAttempt < 3) {
+              console.log(`[UPLOAD FAILOVER] Large file failed on account "${account.name}", trying next account...`);
+              continue;
+            }
+          }
+        }
+        
+        if (!uploadResult) {
+          throw uploadError || new Error('All accounts failed for large file upload');
+        }
+        b2FileId = uploadResult.b2FileId;
+        b2FileName = uploadResult.b2FileName;
       } else {
-        // For small files, read into memory and use simple upload
+        // Small files: use the new failover method
+        console.log(`[UPLOAD] Small file (${req.file.size} bytes), using uploadFileWithFailover`);
         const fileBuffer = fs.readFileSync(tempFilePath);
-        const result = await b2Service.uploadFile(
-          account.id,
+        const result = await b2Service.uploadFileWithFailover(
           sanitizedName,
           fileBuffer,
-          req.file.mimetype
+          req.file.mimetype,
+          req.file.size
         );
         b2FileId = result.b2FileId;
         b2FileName = result.b2FileName;
+        selectedAccount = { id: result.accountId }; // Get account ID from result
       }
 
       const fileId = uuidv4();
       await query(
         `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, account.id, b2FileId, b2FileName]
+        [fileId, sanitizedName, sanitizedName, req.file.mimetype, req.file.size, folderId || null, req.user.id, selectedAccount?.id, b2FileId, b2FileName]
       );
 
       // Space was already reserved atomically, no need to increment again
@@ -187,7 +218,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     } catch (uploadErr) {
       // B2 upload failed - rollback the reserved space
       console.error(`[UPLOAD] B2 upload failed for file "${req.file.originalname}", rolling back reserved space:`, sanitizeError(uploadErr));
-      await b2Service.rollbackReservedSpace(account.id, req.file.size);
+      await b2Service.rollbackReservedSpace(selectedAccount?.id || account?.id || '', req.file.size);
       throw uploadErr;
     }
   } catch (err) {
