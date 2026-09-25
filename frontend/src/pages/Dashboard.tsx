@@ -17,6 +17,7 @@ import { SearchBar } from '../components/SearchBar';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { AccentSelector } from '../components/AccentSelector';
 import { UserMenu } from '../components/UserMenu';
+import { FilePreviewModal } from '../components/FilePreviewModal';
 import { formatBytes, formatDate } from '../utils/format';
 import {
   FolderPlus, LogOut, Menu, X, ChevronRight, ChevronLeft,
@@ -159,6 +160,7 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState<NavItem>('files');
 
   const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
+  const [previewFile, setPreviewFile] = useState<BackendFile | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
@@ -269,7 +271,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownload = async (file: BackendFile) => {
+  const handleDownloadFile = async (file: BackendFile) => {
     try {
       const response = await filesApi.download(file.id);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -295,7 +297,35 @@ export default function Dashboard() {
   };
 
   const handlePreview = (file: BackendFile) => {
-    navigate(`/preview/${file.id}`);
+    setPreviewFile(file);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewFile(null);
+  };
+
+  const handlePreviewNavigate = (direction: 'prev' | 'next') => {
+    const currentIdx = files.findIndex(f => f.id === previewFile?.id);
+    if (currentIdx === -1) return;
+    const newIdx = direction === 'prev' ? currentIdx - 1 : currentIdx + 1;
+    if (newIdx >= 0 && newIdx < files.length) {
+      setPreviewFile(files[newIdx]);
+    }
+  };
+
+  const handleDownload = async (id: string) => {
+    try {
+      const response = await filesApi.download(id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', files.find(f => f.id === id)?.original_name || 'download');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
   };
 
   const getFileIcon = (mimeType: string) => {
@@ -425,7 +455,7 @@ export default function Dashboard() {
               breadcrumbs={breadcrumbs}
               onFileUpload={handleFileUpload}
               onCreateFolder={handleCreateFolder}
-              onDownload={handleDownload}
+              onDownload={handleDownloadFile}
               onPreview={handlePreview}
               onRename={(file) => { setSelectedFile(file); setRenameModalOpen(true); }}
               onMove={(file) => { setSelectedFile(file); setMoveModalOpen(true); }}
@@ -458,6 +488,16 @@ export default function Dashboard() {
       <Modal isOpen={moveModalOpen} onClose={() => setMoveModalOpen(false)} title={t('Move to Folder')} size="sm">
         <MoveModal item={selectedFile!} type="file" folders={folders} currentFolderId={currentFolderId} onMove={handleMove} onClose={() => setMoveModalOpen(false)} />
       </Modal>
+
+      <FilePreviewModal
+        file={previewFile}
+        filesList={files}
+        currentIndex={previewFile ? files.findIndex(f => f.id === previewFile.id) : 0}
+        onClose={handlePreviewClose}
+        onNavigate={handlePreviewNavigate}
+        onDownload={handleDownload}
+        isOpen={!!previewFile}
+      />
     </div>
   );
 }
