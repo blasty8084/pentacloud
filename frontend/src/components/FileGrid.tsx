@@ -44,7 +44,7 @@ export function FileGrid({
     <div
       key={file.id}
       className="group bg-white border border-gray-200 rounded-xl p-3 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
-      onDoubleClick={() => onPreview(file)}
+      onClick={() => onPreview(file)}
     >
       <div className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
         {getFileIcon(file.mime_type)}
