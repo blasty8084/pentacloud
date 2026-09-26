@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Folder, ChevronRight } from 'lucide-react';
+import { Folder, ChevronRight, X, ArrowRightToLine } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -47,20 +47,23 @@ export function MoveModal({ item, type, folders, currentFolderId, onMove, onClos
               if (folder.id !== item.id) setSelectedFolderId(folder.id);
             }}
             disabled={folder.id === item.id}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors rounded-xl ${
               selectedFolderId === folder.id
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-gray-600 hover:bg-gray-50'
-            } ${folder.id === item.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                ? 'bg-accent-primary-light text-accent-primary font-medium'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+              } ${folder.id === item.id ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{ paddingLeft: `${12 + depth * 16}px` }}
           >
             {folder.children && folder.children.length > 0 && (
-              <ChevronRight
-                className={`w-4 h-4 flex-shrink-0 transition-transform ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
-              />
+              <button
+                onClick={(e) => { e.stopPropagation(); setExpandedFolders(prev => { const next = new Set(prev); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next; }); }}
+                className={`p-1 flex-shrink-0 rounded-lg transition-transform ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
+              >
+                <ChevronRight className="w-4 h-4 text-text-tertiary" />
+              </button>
             )}
             {folder.children && folder.children.length === 0 && <div className="w-4 h-4 flex-shrink-0" />}
-            <Folder className="w-4 h-4 flex-shrink-0" />
+            <Folder className="w-4 h-4 flex-shrink-0 text-text-tertiary" />
             <span className="truncate flex-1">{folder.name}</span>
           </button>
           {expandedFolders.has(folder.id) && folder.children && (
@@ -85,17 +88,19 @@ export function MoveModal({ item, type, folders, currentFolderId, onMove, onClos
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">
-        Move <strong>{item.name}</strong> to:
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm text-text-secondary">
+          Move <strong className="text-text-primary">{item.name}</strong> to:
+        </p>
+      </div>
 
-      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2">
+      <div className="card max-h-80 overflow-y-auto p-2">
         <button
           onClick={() => setSelectedFolderId(null)}
-          className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+          className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left transition-colors rounded-xl ${
             selectedFolderId === null
-              ? 'bg-blue-50 text-blue-700 font-medium'
-              : 'text-gray-600 hover:bg-gray-50'
+              ? 'bg-accent-primary-light text-accent-primary font-medium'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
           }`}
         >
           <Folder className="w-4 h-4" />
@@ -105,11 +110,13 @@ export function MoveModal({ item, type, folders, currentFolderId, onMove, onClos
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="secondary" onClick={onClose}>
-          Cancel
+        <Button type="button" variant="ghost" onClick={onClose}>
+          <X className="w-4 h-4" />
+          <span>Cancel</span>
         </Button>
         <Button onClick={handleSubmit} loading={loading}>
-          Move Here
+          <ArrowRightToLine className="w-4 h-4" />
+          <span>Move Here</span>
         </Button>
       </div>
     </div>

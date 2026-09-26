@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Input } from './Input';
+import { FileText, Folder, X } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -46,6 +47,17 @@ export function RenameModal({ item, type, onRename, onClose }: RenameModalProps)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-text-primary">Rename {type}</h3>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
       <Input
         name="rename-input"
         label={`${type === 'file' ? 'File' : 'Folder'} name`}
@@ -56,11 +68,12 @@ export function RenameModal({ item, type, onRename, onClose }: RenameModalProps)
       />
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="secondary" onClick={onClose}>
-          Cancel
+        <Button type="button" variant="ghost" onClick={onClose}>
+          <X className="w-4 h-4" />
+          <span>Cancel</span>
         </Button>
         <Button type="submit" loading={loading}>
-          Rename
+          <span>Rename</span>
         </Button>
       </div>
     </form>

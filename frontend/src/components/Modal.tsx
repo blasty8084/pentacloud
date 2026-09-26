@@ -23,22 +23,22 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <Fragment>
       <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in"
         onClick={onClose}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
       >
         <div
-          className={`w-full ${sizes[size]} bg-white rounded-xl shadow-xl overflow-hidden`}
+          className={`w-full ${sizes[size]} card animate-scale-in`}
           onClick={(e) => e.stopPropagation()}
         >
           {title && (
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 id="modal-title" className="text-lg font-semibold text-gray-900">{title}</h2>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
+              <h2 id="modal-title" className="text-lg font-semibold text-text-primary">{title}</h2>
               <button
                 onClick={onClose}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
                 aria-label="Close modal"
               >
                 <X className="w-5 h-5" />

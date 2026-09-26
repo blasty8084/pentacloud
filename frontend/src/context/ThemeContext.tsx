@@ -1,11 +1,16 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { defaultAccent, type AccentKey, type Language, t } from '../design/tokens';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 interface ThemeContextType {
   accent: AccentKey;
   setAccent: (accent: AccentKey) => void;
   language: Language;
   setLanguage: (language: Language) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  resolvedTheme: 'light' | 'dark';
   t: (key: string) => string;
 }
 
@@ -26,8 +31,40 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return 'en';
   });
 
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('pentacloud-theme') as ThemeMode) || 'system';
+    }
+    return 'system';
+  });
+
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
+
+  // Handle system theme detection
+  useEffect(() => {
+    const updateResolvedTheme = () => {
+      if (themeMode === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setResolvedTheme(prefersDark ? 'dark' : 'light');
+      } else {
+        setResolvedTheme(themeMode);
+      }
+    };
+
+    updateResolvedTheme();
+
+    if (themeMode === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addEventListener('change', updateResolvedTheme);
+      return () => mediaQuery.removeEventListener('change', updateResolvedTheme);
+    }
+  }, [themeMode]);
+
+  // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
+    root.setAttribute('data-theme', resolvedTheme);
+    
     const accentOptions = {
       blue: { primary: '#3B82F6', primaryHover: '#2563EB', primaryLight: '#1E3A5F' },
       emerald: { primary: '#10B981', primaryHover: '#059669', primaryLight: '#064E3B' },
@@ -41,16 +78,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--color-accent-primary-hover', colors.primaryHover);
     root.style.setProperty('--color-accent-primary-light', colors.primaryLight);
     localStorage.setItem('pentacloud-accent', accent);
-  }, [accent]);
+  }, [accent, resolvedTheme]);
 
   useEffect(() => {
     localStorage.setItem('pentacloud-lang', language);
   }, [language]);
 
+  useEffect(() => {
+    localStorage.setItem('pentacloud-theme', themeMode);
+  }, [themeMode]);
+
   const translate = useCallback((key: string) => t(key, language), [language]);
 
   return (
-    <ThemeContext.Provider value={{ accent, setAccent, language, setLanguage, t: translate }}>
+    <ThemeContext.Provider value={{ 
+      accent, setAccent, 
+      language, setLanguage, 
+      themeMode, setThemeMode,
+      resolvedTheme,
+      t: translate 
+    }}>
       {children}
     </ThemeContext.Provider>
   );

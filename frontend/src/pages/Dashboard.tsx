@@ -8,7 +8,9 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { UploadZone } from '../components/UploadZone';
 import { FileGrid } from '../components/FileGrid';
-import { FolderSidebar } from '../components/FolderSidebar';
+import { FileView } from '../components/FileView';
+import { Sidebar } from '../components/Sidebar';
+import { Header } from '../components/Header';
 import { StorageDashboard } from '../components/StorageDashboard';
 import { ShareModal } from '../components/ShareModal';
 import { RenameModal } from '../components/RenameModal';
@@ -44,6 +46,11 @@ interface Folder {
   children?: Folder[];
 }
 
+interface StorageStats {
+  total: { used: number; max: number; percentage: number };
+  accounts: { id: string; name: string; used: number; max: number; percentage: number }[];
+}
+
 type NavItem = 'files' | 'shared' | 'storage' | 'settings';
 
 const navItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
@@ -62,7 +69,6 @@ function StorageMeterMini({ t }: { t: (key: string) => string }) {
       try {
         const response = await storageApi.stats();
         const data = response.data;
-        // Validate response shape
         if (data && typeof data === 'object' && 
             data.total && typeof data.total === 'object' &&
             Array.isArray(data.accounts)) {
@@ -98,8 +104,8 @@ function StorageMeterMini({ t }: { t: (key: string) => string }) {
         <span className="text-text-secondary">{t('Total Storage')}</span>
         <span className="font-medium text-text-primary">{formatBytes(stats.total.used)} / {formatBytes(stats.total.max)}</span>
       </div>
-      <div className="progress-bar">
-        <div className={`progress-bar-fill ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
+      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
       </div>
       <div className="flex justify-between text-xs text-text-tertiary">
         <span>{formatBytes(stats.total.used)} {t('Used')}</span>
@@ -149,8 +155,8 @@ export default function Dashboard() {
 
   const [files, setFiles] = useState<BackendFile[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderTree, setFolderTree] = useState<Folder[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('date');
@@ -158,6 +164,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeNav, setActiveNav] = useState<NavItem>('files');
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
   const [previewFile, setPreviewFile] = useState<BackendFile | null>(null);
@@ -196,10 +203,25 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchStorageStats = useCallback(async () => {
+    try {
+      const response = await storageApi.stats();
+      const data = response.data;
+      if (data && typeof data === 'object' && 
+          data.total && typeof data.total === 'object' &&
+          Array.isArray(data.accounts)) {
+        setStorageStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch storage stats:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchFiles();
     fetchFolders();
-  }, [fetchFiles, fetchFolders]);
+    fetchStorageStats();
+  }, [fetchFiles, fetchFolders, fetchStorageStats]);
 
   useEffect(() => {
     const handleUploadProgress = (event: CustomEvent) => {
@@ -213,6 +235,7 @@ export default function Dashboard() {
     try {
       await filesApi.upload(file, folderId, onProgress);
       fetchFiles();
+      fetchStorageStats();
     } catch (err) {
       console.error('Upload failed:', err);
     }
@@ -266,6 +289,7 @@ export default function Dashboard() {
       }
       fetchFiles();
       fetchFolders();
+      fetchStorageStats();
     } catch (err) {
       console.error('Delete failed:', err);
     }
@@ -332,6 +356,8 @@ export default function Dashboard() {
     if (mimeType?.startsWith('image/')) return <Image className="w-5 h-5 text-green-500" />;
     if (mimeType === 'application/pdf') return <FileText className="w-5 h-5 text-red-500" />;
     if (mimeType?.startsWith('text/')) return <FileText className="w-5 h-5 text-blue-500" />;
+    if (mimeType?.startsWith('video/')) return <FileText className="w-5 h-5 text-purple-500" />;
+    if (mimeType?.startsWith('audio/')) return <FileText className="w-5 h-5 text-orange-500" />;
     return <File className="w-5 h-5 text-gray-500" />;
   };
 
@@ -366,74 +392,37 @@ export default function Dashboard() {
     }
   }
 
-  const sidebarWidth = sidebarCollapsed ? '72px' : '260px';
-
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col text-text-primary">
-      <header className="bg-surface-primary border-b border-surface-border sticky top-0 z-40">
-        <div className="flex items-center justify-between h-[var(--header-height)] px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-surface-secondary transition-colors lg:hidden"
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center flex-shrink-0">
-                <Cloud className="w-5 h-5 text-text-on-accent" />
-              </div>
-              {!sidebarCollapsed && <span className="text-xl font-bold">PENTACLOUD</span>}
-            </div>
-          </div>
-
-          <div className="flex-1 max-w-xl mx-4 sm:mx-8 hidden md:block">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t('Search files...')}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <LanguageToggle currentLang={language} onChange={setLanguage} />
-            <AccentSelector currentAccent={accent} onChange={setAccent} />
-            <UserMenu user={user} onLogout={logout} />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-bg flex flex-col text-text-primary">
+      <Header
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        onNewFolder={() => { setSelectedFile(null); alert('New folder'); }}
+        onUpload={() => { alert('Upload'); }}
+        uploads={uploads}
+        t={t}
+      />
 
       <div className="flex-1 flex overflow-hidden">
-        <aside
-          className={`flex-shrink-0 bg-surface-primary border-r border-surface-border transition-all duration-300 flex flex-col overflow-hidden`}
-          style={{ width: sidebarWidth }}
-        >
-          <nav className="flex-1 flex flex-col p-4 space-y-1 overflow-y-auto">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => setActiveNav(item.id)}
-                className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                  activeNav === item.id ? 'bg-accent-primary-light text-accent-primary font-medium' : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-                }`}
-              >
-                <span className="flex-shrink-0">{item.icon}</span>
-                {!sidebarCollapsed && <span className="truncate">{t(item.label)}</span>}
-              </button>
-            ))}
-          </nav>
-
-          {!sidebarCollapsed && (
-            <div className="p-4 border-t border-surface-border space-y-4">
-              <StorageMeterMini t={t} />
-              <div className="pt-4 border-t border-surface-border">
-                <LanguageToggle currentLang={language} onChange={setLanguage} />
-                <AccentSelector currentAccent={accent} onChange={setAccent} />
-              </div>
-            </div>
-          )}
-        </aside>
+        <Sidebar
+          folders={folderTree}
+          currentFolderId={currentFolderId}
+          onSelect={setCurrentFolderId}
+          onCreate={handleCreateFolder}
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
+          activeNav={activeNav}
+          setActiveNav={setActiveNav}
+          storageStats={storageStats}
+        />
 
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           {activeNav === 'files' && (
@@ -466,6 +455,7 @@ export default function Dashboard() {
               formatDate={formatDate}
               uploads={uploads}
               t={t}
+              storageStats={storageStats}
             />
           )}
 
@@ -498,167 +488,6 @@ export default function Dashboard() {
         onDownload={handleDownload}
         isOpen={!!previewFile}
       />
-    </div>
-  );
-}
-
-function FileView({
-  files,
-  folders,
-  folderTree,
-  currentFolderId,
-  setCurrentFolderId,
-  searchQuery,
-  setSearchQuery,
-  viewMode,
-  setViewMode,
-  sortBy,
-  setSortBy,
-  sortOrder,
-  setSortOrder,
-  loading,
-  breadcrumbs,
-  onFileUpload,
-  onCreateFolder,
-  onDownload,
-  onPreview,
-  onRename,
-  onMove,
-  onDelete,
-  onShare,
-  getFileIcon,
-  formatSize,
-  formatDate,
-  uploads,
-  t,
-}: {
-  files: BackendFile[];
-  folders: Folder[];
-  folderTree: Folder[];
-  currentFolderId: string | null;
-  setCurrentFolderId: (id: string | null) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  viewMode: 'grid' | 'list';
-  setViewMode: (mode: 'grid' | 'list') => void;
-  sortBy: 'name' | 'size' | 'date';
-  setSortBy: (by: 'name' | 'size' | 'date') => void;
-  sortOrder: 'asc' | 'desc';
-  setSortOrder: (order: 'asc' | 'desc') => void;
-  loading: boolean;
-  breadcrumbs: Folder[];
-  onFileUpload: (file: globalThis.File, folderId?: string) => Promise<void>;
-  onCreateFolder: (name: string, parentId?: string) => Promise<void>;
-  onDownload: (file: BackendFile) => Promise<void>;
-  onPreview: (file: BackendFile) => void;
-  onRename: (file: BackendFile) => void;
-  onMove: (file: BackendFile) => void;
-  onDelete: (id: string, type: 'file' | 'folder') => Promise<void>;
-  onShare: (file: BackendFile) => void;
-  getFileIcon: (mimeType: string) => React.ReactNode;
-  formatSize: (bytes: number) => string;
-  formatDate: (timestamp: number) => string;
-  uploads: { fileId: string; status: string }[];
-  t: (key: string) => string;
-}) {
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-surface-border bg-surface-primary/50 flex-shrink-0">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-          <nav className="flex items-center gap-1 text-sm text-text-tertiary" aria-label="Breadcrumb">
-            <button
-              onClick={() => setCurrentFolderId(null)}
-              className="hover:text-text-primary px-2 py-1 rounded flex items-center gap-1"
-            >
-              <Folder className="w-4 h-4" />
-              {!breadcrumbs.length && <span className="font-medium">{t('All Files')}</span>}
-            </button>
-            {breadcrumbs.map((folder) => (
-              <span key={folder.id} className="flex items-center gap-1">
-                <ChevronRight className="w-4 h-4" />
-                <button
-                  onClick={() => setCurrentFolderId(folder.id)}
-                  className="hover:text-text-primary px-2 py-1 rounded truncate max-w-[150px]"
-                >
-                  {folder.name}
-                </button>
-              </span>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="input px-2 py-1 text-sm"
-            >
-              <option value="date">{t('Date Modified')}</option>
-              <option value="name">{t('Name')}</option>
-              <option value="size">{t('Size')}</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="btn-ghost btn-sm"
-              aria-label={sortOrder === 'asc' ? t('Sort descending') : t('Sort ascending')}
-            >
-              <ChevronRight className={`w-4 h-4 transform transition-transform ${sortOrder === 'asc' ? 'rotate-90' : '-rotate-90'}`} />
-            </button>
-            <div className="flex items-center gap-1 border border-surface-border rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-accent-primary-light text-accent-primary' : 'text-text-tertiary hover:text-text-primary'}`}
-                aria-label={t('Grid view')}
-              >
-                <div className="w-5 h-5 grid grid-cols-2 gap-1">
-                  <div className="bg-current rounded" />
-                  <div className="bg-current rounded" />
-                  <div className="bg-current rounded" />
-                  <div className="bg-current rounded" />
-                </div>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-accent-primary-light text-accent-primary' : 'text-text-tertiary hover:text-text-primary'}`}
-                aria-label={t('List view')}
-              >
-                <div className="w-5 h-5 flex flex-col gap-1">
-                  <div className="h-1 bg-current rounded" />
-                  <div className="h-1 bg-current rounded w-3/4" />
-                  <div className="h-1 bg-current rounded w-1/2" />
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-        <UploadZone onUpload={onFileUpload} folderId={currentFolderId ?? undefined} disabled={uploads.some((u: { status: string }) => u.status === 'uploading')} />
-      </div>
-
-      <div className="flex-1 overflow-auto p-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
-          </div>
-        ) : files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
-            <Folder className="w-16 h-16 mb-4 opacity-50" />
-            <p className="text-lg">{t('No files in this folder')}</p>
-            <p className="text-sm">{t('Drag and drop files above or click to upload')}</p>
-          </div>
-        ) : (
-          <FileGrid
-            files={files}
-            viewMode={viewMode}
-            onDownload={onDownload}
-            onPreview={onPreview}
-            onRename={onRename}
-            onMove={onMove}
-            onDelete={onDelete}
-            onShare={onShare}
-            getFileIcon={getFileIcon}
-            formatSize={formatSize}
-            formatDate={formatDate}
-          />
-        )}
-      </div>
     </div>
   );
 }

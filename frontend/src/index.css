@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  /* ==========================================
+     ACCENT COLORS (applied dynamically via JS)
+     ========================================== */
   --color-accent-primary: #3B82F6;
   --color-accent-primary-hover: #2563EB;
   --color-accent-primary-light: #1E3A5F;
@@ -9,6 +12,9 @@
   --color-accent-danger: #EF4444;
   --color-accent-info: #06B6D4;
 
+  /* ==========================================
+     DARK THEME (default)
+     ========================================== */
   --color-bg-primary: #0F172A;
   --color-bg-secondary: #1E293B;
   --color-bg-tertiary: #334155;
@@ -20,13 +26,91 @@
   --color-surface-tertiary: #475569;
   --color-surface-border: #334155;
   --color-surface-border-hover: #475569;
+  --color-surface-elevated: #1E293B;
+  --color-surface-overlay: #0F172A;
 
   --color-text-primary: #F1F5F9;
   --color-text-secondary: #94A3B8;
   --color-text-tertiary: #64748B;
   --color-text-inverse: #0F172A;
   --color-text-on-accent: #FFFFFF;
+  --color-text-muted: #475569;
 
+  /* ==========================================
+     LIGHT THEME
+     ========================================== */
+  --color-bg-primary-light: #F8FAFC;
+  --color-bg-secondary-light: #F1F5F9;
+  --color-bg-tertiary-light: #E2E8F0;
+  --color-bg-hover-light: #E2E8F0;
+  --color-bg-active-light: #CBD5E1;
+
+  --color-surface-primary-light: #FFFFFF;
+  --color-surface-secondary-light: #F8FAFC;
+  --color-surface-tertiary-light: #F1F5F9;
+  --color-surface-border-light: #E2E8F0;
+  --color-surface-border-hover-light: #CBD5E1;
+  --color-surface-elevated-light: #FFFFFF;
+  --color-surface-overlay-light: #F8FAFC;
+
+  --color-text-primary-light: #0F172A;
+  --color-text-secondary-light: #475569;
+  --color-text-tertiary-light: #94A3B8;
+  --color-text-inverse-light: #F8FAFC;
+  --color-text-on-accent-light: #FFFFFF;
+  --color-text-muted-light: #94A3B8;
+
+  /* ==========================================
+     SEMANTIC COLORS (theme-aware)
+     ========================================== */
+  --color-bg: var(--color-bg-primary);
+  --color-bg-secondary: var(--color-bg-secondary);
+  --color-bg-tertiary: var(--color-bg-tertiary);
+  --color-bg-hover: var(--color-bg-hover);
+  --color-bg-active: var(--color-bg-active);
+
+  --color-surface: var(--color-surface-primary);
+  --color-surface-secondary: var(--color-surface-secondary);
+  --color-surface-tertiary: var(--color-surface-tertiary);
+  --color-surface-border: var(--color-surface-border);
+  --color-surface-border-hover: var(--color-surface-border-hover);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-overlay: var(--color-surface-overlay);
+
+  --color-text: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-on-accent: var(--color-text-on-accent);
+  --color-text-muted: var(--color-text-muted);
+
+  /* Light theme overrides (applied via [data-theme="light"]) */
+  [data-theme="light"] {
+    --color-bg: var(--color-bg-primary-light);
+    --color-bg-secondary: var(--color-bg-secondary-light);
+    --color-bg-tertiary: var(--color-bg-tertiary-light);
+    --color-bg-hover: var(--color-bg-hover-light);
+    --color-bg-active: var(--color-bg-active-light);
+
+    --color-surface: var(--color-surface-primary-light);
+    --color-surface-secondary: var(--color-surface-secondary-light);
+    --color-surface-tertiary: var(--color-surface-tertiary-light);
+    --color-surface-border: var(--color-surface-border-light);
+    --color-surface-border-hover: var(--color-surface-border-hover-light);
+    --color-surface-elevated: var(--color-surface-elevated-light);
+    --color-surface-overlay: var(--color-surface-overlay-light);
+
+    --color-text: var(--color-text-primary-light);
+    --color-text-secondary: var(--color-text-secondary-light);
+    --color-text-tertiary: var(--color-text-tertiary-light);
+    --color-text-inverse: var(--color-text-inverse-light);
+    --color-text-on-accent: var(--color-text-on-accent-light);
+    --color-text-muted: var(--color-text-muted-light);
+  }
+
+  /* ==========================================
+     SPACING
+     ========================================== */
   --spacing-0: 0;
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
@@ -41,6 +125,9 @@
   --spacing-20: 5rem;
   --spacing-24: 6rem;
 
+  /* ==========================================
+     RADIUS
+     ========================================== */
   --radius-none: 0;
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
@@ -49,12 +136,26 @@
   --radius-2xl: 1rem;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
-  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.3);
+  /* ==========================================
+     SHADOWS
+     ========================================== */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  
+  [data-theme="dark"] {
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+    --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.3);
+  }
 
+  /* ==========================================
+     TYPOGRAPHY
+     ========================================== */
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
@@ -80,10 +181,16 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* ==========================================
+     TRANSITIONS
+     ========================================== */
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
   --transition-slow: 300ms ease;
 
+  /* ==========================================
+     Z-INDEX
+     ========================================== */
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-modal: 300;
@@ -91,8 +198,11 @@
   --z-tooltip: 500;
   --z-toast: 600;
 
-  --sidebar-width: 260px;
-  --sidebar-collapsed-width: 72px;
+  /* ==========================================
+     LAYOUT
+     ========================================== */
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 80px;
   --header-height: 64px;
   --max-content-width: 1400px;
 }
@@ -103,8 +213,8 @@
 
 html {
   font-family: var(--font-sans);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -129,7 +239,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-primary);
+  background: var(--color-bg);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -142,7 +252,7 @@ body {
 }
 
 ::-webkit-scrollbar-corner {
-  background: var(--color-bg-primary);
+  background: var(--color-bg);
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -165,6 +275,16 @@ input[type="number"] {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -174,17 +294,25 @@ input[type="number"] {
   50% { opacity: 0.5; }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-fade-in { animation: fade-in var(--transition-normal); }
 .animate-slide-up { animation: slide-up var(--transition-normal); }
+.animate-slide-in-right { animation: slide-in-right var(--transition-normal); }
+.animate-scale-in { animation: scale-in var(--transition-fast); }
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-shimmer { animation: shimmer 2s infinite linear; background-size: 200% 100%; }
 
 .focus-ring {
   outline: none;
   ring: 2px;
   ring-color: var(--color-accent-primary);
   ring-offset: 2px;
-  ring-offset-color: var(--color-bg-primary);
+  ring-offset-color: var(--color-bg);
 }
 
 .truncate-2 {
@@ -207,14 +335,194 @@ input[type="number"] {
   border: 1px solid rgba(51, 65, 85, 0.5);
 }
 
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
 .glass-strong {
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(51, 65, 85, 0.3);
 }
 
-.dropdown-divider {
+[data-theme="light"] .glass-strong {
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+  transition: all var(--transition-normal);
+}
+
+.card-hover:hover {
+  border-color: var(--color-surface-border-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent-primary);
+  color: var(--color-text-on-accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-surface-tertiary);
+  color: var(--color-text);
+  border-color: var(--color-surface-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-surface-border-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.btn-danger {
+  background: var(--color-accent-danger);
+  color: var(--color-text-on-accent);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #DC2626;
+}
+
+.btn-sm {
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+}
+
+.btn-lg {
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--text-base);
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--text-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  transition: all var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-primary-light);
+}
+
+.input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+}
+
+.badge-primary {
+  background: var(--color-accent-primary-light);
+  color: var(--color-accent-primary);
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-accent-success);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-accent-warning);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-accent-danger);
+}
+
+.badge-neutral {
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.divider {
   height: 1px;
   background-color: var(--color-surface-border);
-  margin: 0.25rem 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-12);
+  text-align: center;
+  color: var(--color-text-tertiary);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.5;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-tertiary) 25%, var(--color-bg-hover) 50%, var(--color-surface-tertiary) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: shimmer 1.5s infinite;
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, var(--color-surface-tertiary) 25%, var(--color-bg-hover) 50%, var(--color-surface-tertiary) 75%);
 }

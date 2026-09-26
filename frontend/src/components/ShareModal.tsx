@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from './Button';
 import { Input } from './Input';
-import { Copy, Check, ExternalLink } from 'lucide-react';
+import { Copy, Check, ExternalLink, Link2 } from 'lucide-react';
 
 interface File {
   id: string;
@@ -44,8 +44,8 @@ export function ShareModal({ file, onCreate, onClose }: ShareModalProps) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">
-        Create a shareable download link for <strong>{file.name}</strong>
+      <p className="text-sm text-text-secondary">
+        Create a shareable download link for <strong className="text-text-primary">{file.name}</strong>
       </p>
 
       <div className="space-y-3">
@@ -67,14 +67,14 @@ export function ShareModal({ file, onCreate, onClose }: ShareModalProps) {
       </div>
 
       {shareUrl && (
-        <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
-          <p className="text-xs font-medium text-gray-500">Shareable Link</p>
+        <div className="space-y-2 p-4 card bg-surface-secondary/50">
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider">Shareable Link</p>
           <div className="flex gap-2">
             <input
               type="text"
               value={shareUrl}
               readOnly
-              className="flex-1 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg"
+              className="input flex-1 bg-surface-tertiary"
             />
             <Button
               variant="ghost"
@@ -82,20 +82,23 @@ export function ShareModal({ file, onCreate, onClose }: ShareModalProps) {
               onClick={handleCopy}
               aria-label={copied ? 'Copied' : 'Copy to clipboard'}
             >
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-4 h-4 text-accent-success" /> : <Copy className="w-4 h-4" />}
             </Button>
             <a
               href={shareUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              className="p-2 text-text-tertiary hover:text-text-primary hover:bg-surface-secondary rounded-lg transition-colors"
               aria-label="Open in new tab"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>
           {expiresInHours && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-text-tertiary flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-accent-warning/20 flex items-center justify-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-warning" />
+              </span>
               Expires in {expiresInHours} hour{expiresInHours !== '1' ? 's' : ''}
             </p>
           )}
