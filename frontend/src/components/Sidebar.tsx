@@ -134,8 +134,10 @@ export function Sidebar({
       onCreate(newFolderName.trim(), parentId);
       setNewFolderName('');
       setCreatingFolderId(null);
-    }
-  };
+}
+      )};
+    </ul>
+  );
 
   const navItems = [
     { id: 'files', label: 'My Files', icon: Home, count: null },
@@ -278,7 +280,7 @@ export function Sidebar({
               </div>
               <div className="flex justify-between text-xs text-text-tertiary">
                 <span>{formatBytes(storageStats.total.used)} used</span>
-                <span>{formatBytes(storageStats.total.free)} free</span>
+                <span>{formatBytes(storageStats.total.max - storageStats.total.used)} free</span>
               </div>
             </div>
 
@@ -301,7 +303,7 @@ export function Sidebar({
                     </div>
                     <div className="flex justify-between text-xs text-text-tertiary">
                       <span>{formatBytes(account.used)} used</span>
-                      <span>{formatBytes(account.free)} free</span>
+                      <span>{formatBytes(account.max - account.used)} free</span>
                     </div>
                   </div>
                 ))}
@@ -375,12 +377,6 @@ function FolderTreeItem({
   setNewFolderName: (name: string) => void;
 }) {
   const hasChildren = folder.children && folder.children.length > 0;
-  
-  const handleCreateFolder = (parentId?: string) => {
-    if (newFolderName.trim()) {
-      onCreate(newFolderName.trim(), parentId);
-    }
-  };
 
   return (
     <>

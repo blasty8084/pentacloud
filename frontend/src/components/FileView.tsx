@@ -250,7 +250,7 @@ export function FileView({
                       : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
                   }`}
                 >
-                  {type.icon}
+                  <type.icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{type.label}</span>
                   {type.count > 0 && (
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
