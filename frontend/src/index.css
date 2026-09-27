@@ -37,7 +37,7 @@
   --color-text-muted: #475569;
 
   /* ==========================================
-     LIGHT THEME
+     LIGHT THEME (overrides via [data-theme="light"])
      ========================================== */
   --color-bg-primary-light: #F8FAFC;
   --color-bg-secondary-light: #F1F5F9;
@@ -59,54 +59,6 @@
   --color-text-inverse-light: #F8FAFC;
   --color-text-on-accent-light: #FFFFFF;
   --color-text-muted-light: #94A3B8;
-
-  /* ==========================================
-     SEMANTIC COLORS (theme-aware)
-     ========================================== */
-  --color-bg: var(--color-bg-primary);
-  --color-bg-secondary: var(--color-bg-secondary);
-  --color-bg-tertiary: var(--color-bg-tertiary);
-  --color-bg-hover: var(--color-bg-hover);
-  --color-bg-active: var(--color-bg-active);
-
-  --color-surface: var(--color-surface-primary);
-  --color-surface-secondary: var(--color-surface-secondary);
-  --color-surface-tertiary: var(--color-surface-tertiary);
-  --color-surface-border: var(--color-surface-border);
-  --color-surface-border-hover: var(--color-surface-border-hover);
-  --color-surface-elevated: var(--color-surface-elevated);
-  --color-surface-overlay: var(--color-surface-overlay);
-
-  --color-text: var(--color-text-primary);
-  --color-text-secondary: var(--color-text-secondary);
-  --color-text-tertiary: var(--color-text-tertiary);
-  --color-text-inverse: var(--color-text-inverse);
-  --color-text-on-accent: var(--color-text-on-accent);
-  --color-text-muted: var(--color-text-muted);
-
-  /* Light theme overrides (applied via [data-theme="light"]) */
-  [data-theme="light"] {
-    --color-bg: var(--color-bg-primary-light);
-    --color-bg-secondary: var(--color-bg-secondary-light);
-    --color-bg-tertiary: var(--color-bg-tertiary-light);
-    --color-bg-hover: var(--color-bg-hover-light);
-    --color-bg-active: var(--color-bg-active-light);
-
-    --color-surface: var(--color-surface-primary-light);
-    --color-surface-secondary: var(--color-surface-secondary-light);
-    --color-surface-tertiary: var(--color-surface-tertiary-light);
-    --color-surface-border: var(--color-surface-border-light);
-    --color-surface-border-hover: var(--color-surface-border-hover-light);
-    --color-surface-elevated: var(--color-surface-elevated-light);
-    --color-surface-overlay: var(--color-surface-overlay-light);
-
-    --color-text: var(--color-text-primary-light);
-    --color-text-secondary: var(--color-text-secondary-light);
-    --color-text-tertiary: var(--color-text-tertiary-light);
-    --color-text-inverse: var(--color-text-inverse-light);
-    --color-text-on-accent: var(--color-text-on-accent-light);
-    --color-text-muted: var(--color-text-muted-light);
-  }
 
   /* ==========================================
      SPACING
@@ -144,14 +96,6 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
   --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-  
-  [data-theme="dark"] {
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
-    --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.3);
-  }
 
   /* ==========================================
      TYPOGRAPHY
@@ -205,6 +149,67 @@
   --sidebar-collapsed-width: 80px;
   --header-height: 64px;
   --max-content-width: 1400px;
+}
+
+/* ==========================================
+   THEME SWITCHING (via data-theme attribute)
+   ========================================== */
+[data-theme="light"] {
+  --color-bg: var(--color-bg-primary-light);
+  --color-bg-secondary: var(--color-bg-secondary-light);
+  --color-bg-tertiary: var(--color-bg-tertiary-light);
+  --color-bg-hover: var(--color-bg-hover-light);
+  --color-bg-active: var(--color-bg-active-light);
+
+  --color-surface: var(--color-surface-primary-light);
+  --color-surface-secondary: var(--color-surface-secondary-light);
+  --color-surface-tertiary: var(--color-surface-tertiary-light);
+  --color-surface-border: var(--color-surface-border-light);
+  --color-surface-border-hover: var(--color-surface-border-hover-light);
+  --color-surface-elevated: var(--color-surface-elevated-light);
+  --color-surface-overlay: var(--color-surface-overlay-light);
+
+  --color-text: var(--color-text-primary-light);
+  --color-text-secondary: var(--color-text-secondary-light);
+  --color-text-tertiary: var(--color-text-tertiary-light);
+  --color-text-inverse: var(--color-text-inverse-light);
+  --color-text-on-accent: var(--color-text-on-accent-light);
+  --color-text-muted: var(--color-text-muted-light);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+}
+
+[data-theme="dark"] {
+  --color-bg: var(--color-bg-primary);
+  --color-bg-secondary: var(--color-bg-secondary);
+  --color-bg-tertiary: var(--color-bg-tertiary);
+  --color-bg-hover: var(--color-bg-hover);
+  --color-bg-active: var(--color-bg-active);
+
+  --color-surface: var(--color-surface-primary);
+  --color-surface-secondary: var(--color-surface-secondary);
+  --color-surface-tertiary: var(--color-surface-tertiary);
+  --color-surface-border: var(--color-surface-border);
+  --color-surface-border-hover: var(--color-surface-border-hover);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-overlay: var(--color-surface-overlay);
+
+  --color-text: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-on-accent: var(--color-text-on-accent);
+  --color-text-muted: var(--color-text-muted);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.3);
 }
 
 * {
@@ -325,6 +330,7 @@ input[type="number"] {
 .truncate-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -378,7 +384,7 @@ input[type="number"] {
   padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   border: 1px solid transparent;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -445,7 +451,7 @@ input[type="number"] {
   font-size: var(--text-sm);
   background: var(--color-surface);
   border: 1px solid var(--color-surface-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   color: var(--color-text);
   transition: all var(--transition-fast);
 }
@@ -521,8 +527,4 @@ input[type="number"] {
   background-size: 200% 100%;
   border-radius: var(--radius-md);
   animation: shimmer 1.5s infinite;
-}
-
-[data-theme="dark"] .skeleton {
-  background: linear-gradient(90deg, var(--color-surface-tertiary) 25%, var(--color-bg-hover) 50%, var(--color-surface-tertiary) 75%);
 }

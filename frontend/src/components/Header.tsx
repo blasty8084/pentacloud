@@ -77,11 +77,7 @@ export function Header({
   const accents = ['blue', 'emerald', 'violet', 'amber', 'rose', 'cyan'] as const;
   const languages = [
     { code: 'en' as const, label: 'English', flag: '🇺🇸' },
-    { code: 'es' as const, label: 'Español', flag: '🇪🇸' },
-    { code: 'fr' as const, label: 'Français', flag: '🇫🇷' },
-    { code: 'de' as const, label: 'Deutsch', flag: '🇩🇪' },
-    { code: 'zh' as const, label: '中文', flag: '🇨🇳' },
-    { code: 'ja' as const, label: '日本語', flag: '🇯🇵' },
+    { code: 'hi' as const, label: 'हिन्दी', flag: '🇮🇳' },
   ];
 
   return (

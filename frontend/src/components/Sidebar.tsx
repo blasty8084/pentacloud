@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { 
   Folder, ChevronRight, Plus, FolderPlus, 
   Home, Share, BarChart2, Settings,
-  ChevronLeft, ChevronDown, MoreHorizontal,
-  Upload, Download, Archive, Globe
+  ChevronLeft, ChevronDown,
+  Globe
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { formatBytes } from '../utils/format';
-import { storageApi } from '../api/client';
 
 interface FolderItem {
   id: string;
@@ -16,6 +15,8 @@ interface FolderItem {
   children?: FolderItem[];
 }
 
+type NavItem = 'files' | 'shared' | 'storage' | 'settings';
+
 interface SidebarProps {
   folders: FolderItem[];
   currentFolderId: string | null;
@@ -23,8 +24,8 @@ interface SidebarProps {
   onCreate: (name: string, parentId?: string) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  activeNav: string;
-  setActiveNav: (nav: string) => void;
+  activeNav: 'files' | 'shared' | 'storage' | 'settings';
+  setActiveNav: (nav: 'files' | 'shared' | 'storage' | 'settings') => void;
   storageStats: {
     total: { used: number; max: number; percentage: number };
     accounts: { id: string; name: string; used: number; max: number; percentage: number }[];
@@ -65,85 +66,118 @@ export function Sidebar({
     }
   };
 
-  const renderFolderTree = (items: FolderItem[], depth = 0) => (
-    <ul className="space-y-0.5" role="tree" aria-label="Folders">
-      {items.map(folder => (
-        <li key={folder.id}>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onSelect(folder.id)}
-              className={`group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                currentFolderId === folder.id
-                  ? 'bg-accent-primary-light text-accent-primary font-semibold'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-              }`}
-              style={{ paddingLeft: `${12 + depth * 16}px` }}
-              role="treeitem"
-              aria-selected={currentFolderId === folder.id}
-              aria-expanded={expandedFolders.has(folder.id)}
-            >
-              {folder.children && folder.children.length > 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleExpand(folder.id); }}
-                  className={`p-1 flex-shrink-0 rounded-lg transition-all ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
-                  aria-label={expandedFolders.has(folder.id) ? 'Collapse' : 'Expand'}
-                >
-                  <ChevronRight className="w-4 h-4 text-text-tertiary" />
-                </button>
-              )}
-              {folder.children && folder.children.length === 0 && <div className="w-4 h-4 flex-shrink-0" />}
-              <Folder className="w-4 h-4 flex-shrink-0 text-text-tertiary group-active:text-accent-primary" />
-              <span className="truncate flex-1">{folder.name}</span>
-              {!sidebarCollapsed && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setCreatingFolderId(folder.id); }}
-                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label="Create subfolder"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
-            </button>
-          </div>
-          {creatingFolderId === folder.id && (
-            <div className="flex items-center gap-1 px-2 py-1" style={{ paddingLeft: `${28 + depth * 16}px` }}>
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={e => setNewFolderName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreateFolder(folder.id)}
-                onBlur={() => handleCreateFolder(folder.id)}
-                autoFocus
-                className="input flex-1 px-2 py-1.5 text-sm"
-                placeholder="New folder name"
-              />
-            </div>
-          )}
-          {expandedFolders.has(folder.id) && folder.children && (
-            <div role="group" aria-label={`${folder.name} contents`}>
-              {renderFolderTree(folder.children, depth + 1)}
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
+  function FolderTreeItem({
+    folder,
+    depth,
+    currentFolderId,
+    onSelect,
+    onCreate,
+    expandedFolders,
+    setExpandedFolders,
+    creatingFolderId,
+    setCreatingFolderId,
+    newFolderName,
+    setNewFolderName,
+  }: {
+    folder: FolderItem;
+    depth: number;
+    currentFolderId: string | null;
+    onSelect: (folderId: string | null) => void;
+    onCreate: (name: string, parentId?: string) => void;
+    expandedFolders: Set<string>;
+    setExpandedFolders: (folders: Set<string>) => void;
+    creatingFolderId: string | null;
+    setCreatingFolderId: (id: string | null) => void;
+    newFolderName: string;
+    setNewFolderName: (name: string) => void;
+  }) {
+    const hasChildren = folder.children && folder.children.length > 0;
 
-  const handleCreateFolder = (parentId?: string) => {
-    if (newFolderName.trim()) {
-      onCreate(newFolderName.trim(), parentId);
-      setNewFolderName('');
-      setCreatingFolderId(null);
-}
-      )};
-    </ul>
-  );
+    const handleCreateFolder = (parentId?: string) => {
+      if (newFolderName.trim()) {
+        onCreate(newFolderName.trim(), parentId);
+      }
+    };
+
+    return (
+      <>
+        <button
+          onClick={() => onSelect(folder.id)}
+          className={`group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+            currentFolderId === folder.id
+              ? 'bg-accent-primary-light text-accent-primary font-semibold'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+          }`}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          role="treeitem"
+          aria-selected={currentFolderId === folder.id}
+          aria-expanded={hasChildren && expandedFolders.has(folder.id)}
+        >
+          {hasChildren && (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleExpand(folder.id); }}
+              className={`p-1 flex-shrink-0 rounded-lg transition-all ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
+              aria-label={expandedFolders.has(folder.id) ? 'Collapse' : 'Expand'}
+            >
+              <ChevronRight className="w-4 h-4 text-text-tertiary" />
+            </button>
+          )}
+          {hasChildren === false && <div className="w-4 h-4 flex-shrink-0" />}
+          <Folder className="w-4 h-4 flex-shrink-0 text-text-tertiary group-active:text-accent-primary" />
+          <span className="truncate flex-1">{folder.name}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setCreatingFolderId(folder.id); }}
+            className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Create subfolder"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </button>
+        
+        {creatingFolderId === folder.id && (
+          <div className="flex items-center gap-1 px-2 py-1" style={{ paddingLeft: `${28 + depth * 16}px` }}>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreateFolder(folder.id)}
+              onBlur={() => handleCreateFolder(folder.id)}
+              autoFocus
+              className="input flex-1 px-2 py-1.5 text-sm"
+              placeholder="New folder name"
+            />
+          </div>
+        )}
+        
+        {hasChildren && expandedFolders.has(folder.id) && (
+          <div role="group" aria-label={`${folder.name} contents`}>
+            {folder.children!.map(child => (
+              <FolderTreeItem
+                key={child.id}
+                folder={child}
+                depth={depth + 1}
+                currentFolderId={currentFolderId}
+                onSelect={onSelect}
+                onCreate={onCreate}
+                expandedFolders={expandedFolders}
+                setExpandedFolders={setExpandedFolders}
+                creatingFolderId={creatingFolderId}
+                setCreatingFolderId={setCreatingFolderId}
+                newFolderName={newFolderName}
+                setNewFolderName={setNewFolderName}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
 
   const navItems = [
-    { id: 'files', label: 'My Files', icon: Home, count: null },
-    { id: 'shared', label: 'Shared', icon: Share, count: null },
-    { id: 'storage', label: 'Storage', icon: BarChart2, count: null },
-    { id: 'settings', label: 'Settings', icon: Settings, count: null },
+    { id: 'files' as const, label: 'My Files', icon: <Home className="w-5 h-5" />, count: null },
+    { id: 'shared' as const, label: 'Shared', icon: <Share className="w-5 h-5" />, count: null },
+    { id: 'storage' as const, label: 'Storage', icon: <BarChart2 className="w-5 h-5" />, count: null },
+    { id: 'settings' as const, label: 'Settings', icon: <Settings className="w-5 h-5" />, count: null },
   ];
 
   return (
@@ -348,106 +382,5 @@ export function Sidebar({
         </div>
       )}
     </aside>
-  );
-}
-
-function FolderTreeItem({
-  folder,
-  depth,
-  currentFolderId,
-  onSelect,
-  onCreate,
-  expandedFolders,
-  setExpandedFolders,
-  creatingFolderId,
-  setCreatingFolderId,
-  newFolderName,
-  setNewFolderName,
-}: {
-  folder: FolderItem;
-  depth: number;
-  currentFolderId: string | null;
-  onSelect: (folderId: string | null) => void;
-  onCreate: (name: string, parentId?: string) => void;
-  expandedFolders: Set<string>;
-  setExpandedFolders: (folders: Set<string>) => void;
-  creatingFolderId: string | null;
-  setCreatingFolderId: (id: string | null) => void;
-  newFolderName: string;
-  setNewFolderName: (name: string) => void;
-}) {
-  const hasChildren = folder.children && folder.children.length > 0;
-
-  return (
-    <>
-      <button
-        onClick={() => onSelect(folder.id)}
-        className={`group flex items-center gap-2 w-full px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-          currentFolderId === folder.id
-            ? 'bg-accent-primary-light text-accent-primary font-semibold'
-            : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-        }`}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
-        role="treeitem"
-        aria-selected={currentFolderId === folder.id}
-        aria-expanded={hasChildren && expandedFolders.has(folder.id)}
-      >
-        {hasChildren && (
-          <button
-            onClick={(e) => { e.stopPropagation(); setExpandedFolders(prev => { const next = new Set(prev); if (next.has(folder.id)) next.delete(folder.id); else next.add(folder.id); return next; }); }}
-            className={`p-1 flex-shrink-0 rounded-lg transition-all ${expandedFolders.has(folder.id) ? 'rotate-90' : ''}`}
-            aria-label={expandedFolders.has(folder.id) ? 'Collapse' : 'Expand'}
-          >
-            <ChevronRight className="w-4 h-4 text-text-tertiary" />
-          </button>
-        )}
-        {hasChildren === false && <div className="w-4 h-4 flex-shrink-0" />}
-        <Folder className="w-4 h-4 flex-shrink-0 text-text-tertiary group-active:text-accent-primary" />
-        <span className="truncate flex-1">{folder.name}</span>
-        <button
-          onClick={(e) => { e.stopPropagation(); setCreatingFolderId(folder.id); }}
-          className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label="Create subfolder"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </button>
-      
-      {creatingFolderId === folder.id && (
-        <div className="flex items-center gap-1 px-2 py-1" style={{ paddingLeft: `${28 + depth * 16}px` }}>
-          <input
-            type="text"
-            value={newFolderName}
-            onChange={e => setNewFolderName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreateFolder(folder.id)}
-            onBlur={() => handleCreateFolder(folder.id)}
-            autoFocus
-            className="input flex-1 px-2 py-1.5 text-sm"
-            placeholder="New folder name"
-          />
-        </div>
-      )}
-      
-      {hasChildren && expandedFolders.has(folder.id) && (
-        <div role="group" aria-label={`${folder.name} contents`}>
-          {folder.children!.map(child => (
-            <FolderTreeItem
-              key={child.id}
-              folder={child}
-              depth={depth + 1}
-              currentFolderId={currentFolderId}
-              onSelect={onSelect}
-              onCreate={onCreate}
-              expandedFolders={expandedFolders}
-              setExpandedFolders={setExpandedFolders}
-              creatingFolderId={creatingFolderId}
-              setCreatingFolderId={setCreatingFolderId}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-            />
-          ))}
-        </div>
-      )}
-    </>
   );
 }

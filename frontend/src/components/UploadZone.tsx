@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { Upload, X, Loader2, CheckCircle, AlertCircle, Image, FileText, File, ArrowUpTray } from 'lucide-react';
+import { Upload, X, Loader2, CheckCircle, AlertCircle, Image, FileText, File, ArrowUp } from 'lucide-react';
 import { useUpload } from '../context/UploadContext';
 import { formatBytes } from '../utils/format';
 import { Button } from './Button';
@@ -98,7 +98,7 @@ export function UploadZone({ onUpload, folderId, disabled }: UploadZoneProps) {
         
         <div className="relative z-10">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-accent-primary-light flex items-center justify-center mb-4 animate-pulse">
-            <ArrowUpTray className="w-8 h-8 text-accent-primary" />
+            <ArrowUp className="w-8 h-8 text-accent-primary" />
           </div>
           <p className="text-text-primary font-medium text-lg mb-1">Drag & drop files here, or click to browse</p>
           <p className="text-sm text-text-tertiary mt-1">Maximum file size: 5GB per file</p>
