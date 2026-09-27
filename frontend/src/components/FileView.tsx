@@ -184,7 +184,7 @@ export function FileView({
   ];
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-bg">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-bg)]">
       {/* Toolbar */}
       <div className="flex-shrink-0 border-b border-surface-border bg-surface/50 backdrop-blur-sm">
         {/* Top Toolbar */}
@@ -225,113 +225,112 @@ export function FileView({
           </div>
         </div>
 
-        {/* Bottom Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-t border-surface-border">
-          {/* Left: Search + Filters */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="relative flex-1 max-w-md">
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search in folder..."
-                className="w-full"
-              />
+{/* Bottom Toolbar */}
+        <div className="p-4 border-t border-surface-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            {/* Left: Search + Filters */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1 min-w-0">
+              <div className="relative flex-1 min-w-0 max-w-md sm:max-w-xl">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search in folder..."
+                  className="w-full"
+                />
+              </div>
+
+              {/* File Type Filters */}
+              <div className="flex flex-wrap items-center gap-1 border border-surface-border rounded-xl p-1" role="group" aria-label="File type filters">
+                {fileTypes.map(type => (
+                  <button
+                    key={type.id}
+                    onClick={() => setFilterType(type.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                      filterType === type.id
+                        ? 'bg-accent-primary-light text-accent-primary'
+                        : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                    }`}
+                  >
+                    <type.icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{type.label}</span>
+                    {type.count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                        filterType === type.id
+                          ? 'bg-accent-primary text-accent-primary-light'
+                          : 'bg-surface-tertiary text-text-tertiary'
+                      }`}>
+                        {type.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* File Type Filters */}
-            <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1" role="group" aria-label="File type filters">
-              {fileTypes.map(type => (
+            {/* Right: Sort + View + Actions */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Sort */}
+              <div className="flex items-center gap-2 border border-surface-border rounded-xl px-2 py-1.5">
+                <label className="text-xs text-text-tertiary hidden sm:block">Sort</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-transparent border-none text-sm font-medium text-text-secondary focus:outline-none cursor-pointer min-w-[120px]"
+                  aria-label="Sort by"
+                >
+                  <option value="date">Date Modified</option>
+                  <option value="name">Name</option>
+                  <option value="size">Size</option>
+                </select>
                 <button
-                  key={type.id}
-                  onClick={() => setFilterType(type.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
-                    filterType === type.id
-                      ? 'bg-accent-primary-light text-accent-primary'
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* View Mode */}
+              <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-xl transition-all duration-200 ${
+                    viewMode === 'grid' 
+                      ? 'bg-accent-primary-light text-accent-primary' 
                       : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
                   }`}
+                  aria-label="Grid view"
                 >
-                  <type.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{type.label}</span>
-                  {type.count > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                      filterType === type.id
-                        ? 'bg-accent-primary text-accent-primary-light'
-                        : 'bg-surface-tertiary text-text-tertiary'
-                    }`}>
-                      {type.count}
-                    </span>
-                  )}
+                  <Grid className="w-4 h-4" />
                 </button>
-              ))}
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-xl transition-all duration-200 ${
+                    viewMode === 'list' 
+                      ? 'bg-accent-primary-light text-accent-primary' 
+                      : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                  }`}
+                  aria-label="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => alert('New folder')}>
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New Folder</span>
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => alert('Upload')}>
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Upload</span>
+                </Button>
+              </div>
             </div>
           </div>
-
-          {/* Right: Sort + View + Actions */}
-          <div className="flex items-center gap-2">
-            {/* Sort */}
-            <div className="flex items-center gap-2 border border-surface-border rounded-xl px-2 py-1.5">
-              <label className="text-xs text-text-tertiary hidden sm:block">Sort</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent border-none text-sm font-medium text-text-secondary focus:outline-none cursor-pointer min-w-[120px]"
-                aria-label="Sort by"
-              >
-                <option value="date">Date Modified</option>
-                <option value="name">Name</option>
-                <option value="size">Size</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
-                aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-
-            {/* View Mode */}
-            <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-xl transition-all duration-200 ${
-                  viewMode === 'grid' 
-                    ? 'bg-accent-primary-light text-accent-primary' 
-                    : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-                }`}
-                aria-label="Grid view"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-xl transition-all duration-200 ${
-                  viewMode === 'list' 
-                    ? 'bg-accent-primary-light text-accent-primary' 
-                    : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-                }`}
-                aria-label="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => alert('New folder')}>
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">New Folder</span>
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => alert('Upload')}>
-                <UploadIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Upload</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Area */}
+{/* Content Area */}
       <div className="flex-1 overflow-auto">
         {/* Dashboard Widgets Row */}
         <div className="p-4 lg:hidden">

@@ -192,16 +192,16 @@ export function Sidebar({
       {/* Header */}
       <div className="flex items-center justify-between h-[64px] px-4 border-b border-surface-border flex-shrink-0">
         {!sidebarCollapsed && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-accent-primary-light flex items-center justify-center flex-shrink-0">
               <Globe className="w-5 h-5 text-accent-primary" />
             </div>
-            <span className="text-xl font-bold text-text-primary">PENTACLOUD</span>
+            <span className="text-xl font-bold text-text-primary truncate">PENTACLOUD</span>
           </div>
         )}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className={`p-2 rounded-xl transition-all duration-200 hover:bg-surface-secondary ${
+          className={`p-2 rounded-xl transition-all duration-200 hover:bg-surface-secondary flex-shrink-0 ${
             sidebarCollapsed ? 'ml-auto' : 'ml-2'
           }`}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
