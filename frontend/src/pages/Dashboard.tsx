@@ -172,7 +172,10 @@ export default function Dashboard() {
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
 
-  const fetchFiles = useCallback(async () => {
+  const fetchFiles = useCallback(async (isBackgroundRefresh = false) => {
+    if (!isBackgroundRefresh) {
+      setLoading(true);
+    }
     try {
       const response = await filesApi.list({
         folderId: currentFolderId || undefined,
@@ -183,6 +186,8 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch files:', err);
       setFiles([]);
+    } finally {
+      setLoading(false);
     }
   }, [currentFolderId, searchQuery]);
 
@@ -234,7 +239,7 @@ export default function Dashboard() {
   const handleFileUpload = async (file: globalThis.File, folderId?: string, onProgress?: (percent: number) => void) => {
     try {
       await filesApi.upload(file, folderId, onProgress);
-      fetchFiles();
+      fetchFiles(true);
       fetchStorageStats();
     } catch (err) {
       console.error('Upload failed:', err);
@@ -245,7 +250,7 @@ export default function Dashboard() {
     try {
       await foldersApi.create({ name, parentId });
       fetchFolders();
-      fetchFiles();
+      fetchFiles(true);
     } catch (err) {
       console.error('Create folder failed:', err);
     }
@@ -258,7 +263,7 @@ export default function Dashboard() {
       } else {
         await foldersApi.update(id, { name });
       }
-      fetchFiles();
+      fetchFiles(true);
       fetchFolders();
     } catch (err) {
       console.error('Rename failed:', err);
@@ -272,7 +277,7 @@ export default function Dashboard() {
       } else {
         await foldersApi.update(id, { parentId: folderId });
       }
-      fetchFiles();
+      fetchFiles(true);
       fetchFolders();
     } catch (err) {
       console.error('Move failed:', err);
@@ -287,7 +292,7 @@ export default function Dashboard() {
       } else {
         await foldersApi.delete(id);
       }
-      fetchFiles();
+      fetchFiles(true);
       fetchFolders();
       fetchStorageStats();
     } catch (err) {
