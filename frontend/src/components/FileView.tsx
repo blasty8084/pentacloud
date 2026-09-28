@@ -112,7 +112,6 @@ export function FileView({
   const [showActivity, setShowActivity] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
 
-  // Generate mock activity from files
   useEffect(() => {
     const activities: ActivityItem[] = files
       .slice(0, 10)
@@ -225,7 +224,7 @@ export function FileView({
           </div>
         </div>
 
-{/* Bottom Toolbar */}
+        {/* Bottom Toolbar */}
         <div className="p-4 border-t border-surface-border">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             {/* Left: Search + Filters */}
@@ -330,7 +329,10 @@ export function FileView({
               </div>
             </div>
           </div>
-{/* Content Area */}
+        </div>
+      </div>
+
+      {/* Content Area */}
       <div className="flex-1 overflow-auto">
         {/* Dashboard Widgets Row */}
         <div className="p-4 lg:hidden">
@@ -479,38 +481,38 @@ export function FileView({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto lg:pr-84">
-        <div className="p-4 lg:p-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
-            </div>
-          ) : sortedFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-text-tertiary">
-              <div className="w-16 h-16 rounded-2xl bg-surface-secondary flex items-center justify-center mb-4">
-                <Folder className="w-8 h-8 opacity-50" />
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto lg:pr-84">
+          <div className="p-4 lg:p-6">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
               </div>
-              <p className="text-lg font-medium text-text-secondary mb-1">No files in this folder</p>
-              <p className="text-sm text-text-tertiary">Drag and drop files above or click Upload to get started</p>
-            </div>
-          ) : (
-            <FileGrid
-              files={sortedFiles}
-              viewMode={viewMode}
-              onDownload={onDownload}
-              onPreview={onPreview}
-              onRename={onRename}
-              onMove={onMove}
-              onDelete={onDelete}
-              onShare={onShare}
-              getFileIcon={getFileIcon}
-              formatSize={formatSize}
-              formatDate={formatDate}
-            />
-          )}
+            ) : sortedFiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-text-tertiary">
+                <div className="w-16 h-16 rounded-2xl bg-surface-secondary flex items-center justify-center mb-4">
+                  <Folder className="w-8 h-8 opacity-50" />
+                </div>
+                <p className="text-lg font-medium text-text-secondary mb-1">No files in this folder</p>
+                <p className="text-sm text-text-tertiary">Drag and drop files above or click Upload to get started</p>
+              </div>
+            ) : (
+              <FileGrid
+                files={sortedFiles}
+                viewMode={viewMode}
+                onDownload={onDownload}
+                onPreview={onPreview}
+                onRename={onRename}
+                onMove={onMove}
+                onDelete={onDelete}
+                onShare={onShare}
+                getFileIcon={getFileIcon}
+                formatSize={formatSize}
+                formatDate={formatDate}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
