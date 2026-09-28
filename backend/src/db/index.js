@@ -3,6 +3,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Parse BIGINT (OID 20) as JavaScript numbers instead of strings
+// Values fit well within Number.MAX_SAFE_INTEGER (9e15)
+pg.types.setTypeParser(20, (val) => parseInt(val, 10));
+
 const { Pool } = pg;
 
 const pool = new Pool({

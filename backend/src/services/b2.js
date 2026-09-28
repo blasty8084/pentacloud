@@ -370,8 +370,8 @@ async getAccountWithMostSpace() {
     for (const account of accounts) {
       if (!this.isAccountAvailable(account.id)) continue;
       
-      const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
-      const freeSpace = maxBytes - (account.used_bytes || 0);
+      const maxBytes = Number(account.max_size_gb) * 1024 * 1024 * 1024;
+      const freeSpace = maxBytes - (Number(account.used_bytes) || 0);
       
       if (freeSpace > 0) {
         return account;
@@ -471,8 +471,9 @@ async getAccountWithMostSpace() {
     let totalMax = 0;
     
     for (const account of accounts) {
-      const used = account.used_bytes || 0;
-      const maxBytes = account.max_size_gb * 1024 * 1024 * 1024;
+      // pg returns BIGINT as string, convert to number (belt-and-suspenders with type parser)
+      const used = Number(account.used_bytes) || 0;
+      const maxBytes = Number(account.max_size_gb) * 1024 * 1024 * 1024;
       totalUsed += used;
       totalMax += maxBytes;
       

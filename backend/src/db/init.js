@@ -99,20 +99,25 @@ async function initializeDatabase() {
   await query('CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);');
 
   // Defensive check: validate used_bytes doesn't exceed max_size_gb * 1073741824
-  const checkResult = await query(`
-    SELECT id, name, used_bytes, max_size_gb, (max_size_gb * 1073741824) as max_bytes
-    FROM b2_accounts 
-    WHERE used_bytes > (max_size_gb * 1073741824)
-  `);
-  
-  if (checkResult.rows.length > 0) {
-    console.warn('⚠️  STORAGE INCONSISTENCY DETECTED: The following accounts have used_bytes exceeding their max capacity:');
-    for (const row of checkResult.rows) {
-      const overage = row.used_bytes - row.max_bytes;
-      const overageGB = (overage / 1073741824).toFixed(2);
-      console.warn(`  - Account "${row.name}" (${row.id}): used=${formatBytes(row.used_bytes)}, max=${formatBytes(row.max_bytes)}, OVER by ${overageGB} GB`);
+  // Wrapped in try/catch so a diagnostic can never crash startup
+  try {
+    const checkResult = await query(`
+      SELECT id, name, used_bytes, max_size_gb, (max_size_gb::bigint * 1073741824) as max_bytes
+      FROM b2_accounts 
+      WHERE used_bytes > (max_size_gb::bigint * 1073741824)
+    `);
+    
+    if (checkResult.rows.length > 0) {
+      console.warn('⚠️  STORAGE INCONSISTENCY DETECTED: The following accounts have used_bytes exceeding their max capacity:');
+      for (const row of checkResult.rows) {
+        const overage = row.used_bytes - row.max_bytes;
+        const overageGB = (overage / 1073741824).toFixed(2);
+        console.warn(`  - Account "${row.name}" (${row.id}): used=${formatBytes(row.used_bytes)}, max=${formatBytes(row.max_bytes)}, OVER by ${overageGB} GB`);
+      }
+      console.warn('   This indicates a bug in space accounting. Run the reconcile endpoint to fix.');
     }
-    console.warn('   This indicates a bug in space accounting. Run the reconcile endpoint to fix.');
+  } catch (err) {
+    console.warn('⚠️  Defensive storage check failed (non-fatal):', err.message);
   }
 
   console.log('Database initialized (PostgreSQL)');
