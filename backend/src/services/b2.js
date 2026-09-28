@@ -2,6 +2,15 @@ import B2 from 'backblaze-b2';
 import { query } from '../db/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
+// Helper for logging bytes in human-readable format
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export class B2Service {
   constructor() {
     this.clients = new Map();
@@ -584,8 +593,17 @@ async getAccountWithMostSpace() {
         // Record failure for health tracking
         this.recordAccountFailure(account.id);
         
-        // Rollback reserved space on failed account
-        await this.rollbackReservedSpace(account.id, fileSize);
+        // CRITICAL: Rollback reserved space on failed account - must succeed before failover
+        // Wrap in try/catch to ensure rollback errors don't block failover but are logged
+        try {
+          await this.rollbackReservedSpace(account.id, fileSize);
+          console.log(`[B2 FAILOVER] Rolled back ${formatBytes(fileSize)} reservation on account "${account.name}" (${account.id})`);
+        } catch (rollbackErr) {
+          // CRITICAL: If rollback fails, log prominently but continue failover
+          // The space will be "leaked" until manual reconciliation
+          console.error(`[B2 FAILOVER] ⚠️ CRITICAL: Failed to rollback reservation on account "${account.name}" (${account.id}): ${this.sanitizeError(rollbackErr)}`);
+          console.error(`[B2 FAILOVER] Space reservation LEAKED for ${fileSize} bytes. Manual reconciliation required.`);
+        }
         
         if (failoverAttempt < B2Service.MAX_FAILOVER_ACCOUNTS) {
           console.log(`[B2 FAILOVER] Failing over to next account...`);

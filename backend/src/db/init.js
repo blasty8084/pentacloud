@@ -1,5 +1,14 @@
 import { query } from '../db/index.js';
 
+// Helper for logging bytes in human-readable format
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 async function initializeDatabase() {
   // Users table
   await query(`
@@ -88,6 +97,23 @@ async function initializeDatabase() {
   await query('CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);');
   await query('CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);');
   await query('CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);');
+
+  // Defensive check: validate used_bytes doesn't exceed max_size_gb * 1073741824
+  const checkResult = await query(`
+    SELECT id, name, used_bytes, max_size_gb, (max_size_gb * 1073741824) as max_bytes
+    FROM b2_accounts 
+    WHERE used_bytes > (max_size_gb * 1073741824)
+  `);
+  
+  if (checkResult.rows.length > 0) {
+    console.warn('⚠️  STORAGE INCONSISTENCY DETECTED: The following accounts have used_bytes exceeding their max capacity:');
+    for (const row of checkResult.rows) {
+      const overage = row.used_bytes - row.max_bytes;
+      const overageGB = (overage / 1073741824).toFixed(2);
+      console.warn(`  - Account "${row.name}" (${row.id}): used=${formatBytes(row.used_bytes)}, max=${formatBytes(row.max_bytes)}, OVER by ${overageGB} GB`);
+    }
+    console.warn('   This indicates a bug in space accounting. Run the reconcile endpoint to fix.');
+  }
 
   console.log('Database initialized (PostgreSQL)');
 }
