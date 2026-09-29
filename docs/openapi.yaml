@@ -1,0 +1,1051 @@
+openapi: 3.0.3
+info:
+  title: PENTACLOUD API
+  version: 1.0.0
+  description: |
+    PENTACLOUD Backend API - Personal/Team Cloud Storage pooling 5 Backblaze B2 accounts.
+    
+    Base URL: `https://your-backend.onrender.com/api` (production) or `http://localhost:4000/api` (local)
+    
+    All endpoints require `Authorization: Bearer <accessToken>` header unless marked public.
+    Refresh token is sent via httpOnly cookie automatically.
+servers:
+  - url: https://your-backend.onrender.com/api
+    description: Production
+  - url: http://localhost:4000/api
+    description: Local development
+security:
+  - BearerAuth: []
+  - CookieAuth: []
+
+tags:
+  - name: Health
+    description: Health check
+  - name: Authentication
+    description: User authentication and session management
+  - name: Files
+    description: File CRUD operations
+  - name: Folders
+    description: Folder CRUD operations
+  - name: Shares
+    description: Shareable download links
+  - name: Storage
+    description: Storage statistics
+  - name: Settings (Admin)
+    description: Admin-only settings
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+
+  schemas:
+    # Error responses
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Internal server error"
+      required: [error]
+
+    ValidationError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              path:
+                type: string
+              msg:
+                type: string
+              location:
+                type: string
+          required: [type, path, msg, location]
+      required: [errors]
+
+    # Auth
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+      required: [id, email, name, role]
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+      required: [accessToken, user]
+
+    SignupRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          maxLength: 100
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+
+    # Files
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        original_name:
+          type: string
+        mime_type:
+          type: string
+        size:
+          type: integer
+          format: int64
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_id:
+          type: string
+          format: uuid
+        b2_account_id:
+          type: string
+          format: uuid
+        b2_file_id:
+          type: string
+        b2_file_name:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+      required: [id, name, original_name, mime_type, size, user_id, b2_account_id, b2_file_id, b2_file_name, created_at, updated_at]
+
+    FileListResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/File'
+
+    UploadResponse:
+      $ref: '#/components/schemas/File'
+
+    # Folders
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: integer
+          format: int64
+        updated_at:
+          type: integer
+          format: int64
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Folder'
+      required: [id, name, user_id, created_at, updated_at]
+
+    CreateFolderRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parentId:
+          type: string
+          format: uuid
+
+    UpdateFolderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # Shares
+    ShareLinkResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          format: uuid
+        shareUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [token, shareUrl]
+
+    # Storage
+    StorageAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        bucketName:
+          type: string
+        bucketEndpoint:
+          type: string
+        used:
+          type: integer
+          format: int64
+        max:
+          type: integer
+          format: int64
+        free:
+          type: integer
+          format: int64
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        health:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        consecutiveFailures:
+          type: integer
+        available:
+          type: boolean
+      required: [id, name, bucketName, bucketEndpoint, used, max, free, percentage, health, consecutiveFailures, available]
+
+    StorageStats:
+      type: object
+      properties:
+        total:
+          type: object
+          properties:
+            used:
+              type: integer
+              format: int64
+            max:
+              type: integer
+              format: int64
+            free:
+              type: integer
+              format: int64
+            percentage:
+              type: integer
+              minimum: 0
+              maximum: 100
+          required: [used, max, free, percentage]
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageAccount'
+      required: [total, accounts]
+
+    # B2 Account (Admin)
+    B2Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        bucket_name:
+          type: string
+        bucket_endpoint:
+          type: string
+        max_size_gb:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required: [id, name, bucket_name, bucket_endpoint, max_size_gb, created_at]
+
+    AddB2AccountRequest:
+      type: object
+      required: [name, keyId, appKey, bucketName, bucketEndpoint]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        keyId:
+          type: string
+          minLength: 1
+        appKey:
+          type: string
+          minLength: 1
+        bucketName:
+          type: string
+          minLength: 1
+        bucketEndpoint:
+          type: string
+          minLength: 1
+          pattern: '^s3\\..+\\.backblazeb2\\.com$'
+        maxSizeGb:
+          type: integer
+          minimum: 1
+          maximum: 100
+
+    # Generic success
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    ReconcileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              used_bytes:
+                type: integer
+                format: int64
+      required: [success, accounts]
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+
+  # Auth
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Register new user (first becomes admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              headers:
+                Set-Cookie:
+                  description: accessToken + refreshToken cookies
+                  schema:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              headers:
+                Set-Cookie:
+                  description: accessToken + refreshToken cookies
+                  schema:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token (uses refresh token cookie)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              headers:
+                Set-Cookie:
+                  description: New accessToken + rotated refreshToken
+                  schema:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout (clears cookies)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required: [success]
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                required: [user]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Files
+  /files:
+    get:
+      tags: [Files]
+      summary: List files (with folder filter and search)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: folderId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Files]
+      summary: Upload file (multipart/form-data)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                folderId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '507':
+          description: Insufficient storage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files/{id}/download:
+    get:
+      tags: [Files]
+      summary: Download file (streamed through backend)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files/{id}:
+    patch:
+      tags: [Files]
+      summary: Rename or move file
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                folderId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Files]
+      summary: Delete file
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Folders
+  /folders:
+    get:
+      tags: [Folders]
+      summary: Flat list of folders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+
+    post:
+      tags: [Folders]
+      summary: Create folder
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFolderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /folders/tree:
+    get:
+      tags: [Folders]
+      summary: Nested folder tree
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+
+  /folders/{id}:
+    patch:
+      tags: [Folders]
+      summary: Rename or move folder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFolderRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Folders]
+      summary: Delete folder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Shares
+  /shares:
+    post:
+      tags: [Shares]
+      summary: Create shareable download link
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileId]
+              properties:
+                fileId:
+                  type: string
+                  format: uuid
+                expiresInHours:
+                  type: integer
+                  minimum: 1
+                  maximum: 8760
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /shares/{token}:
+    get:
+      tags: [Shares]
+      summary: Download file via share link
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Shares]
+      summary: Delete share link
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Storage
+  /storage/stats:
+    get:
+      tags: [Storage]
+      summary: Get cached storage stats (no live B2 calls)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Settings (Admin)
+  /settings/b2-accounts:
+    get:
+      tags: [Settings (Admin)]
+      summary: List B2 accounts (no secrets)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/B2Account'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Settings (Admin)]
+      summary: Add B2 account
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddB2AccountRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/B2Account'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /settings/b2-accounts/{id}:
+    delete:
+      tags: [Settings (Admin)]
+      summary: Delete B2 account (must be empty)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /settings/b2-accounts/reconcile:
+    post:
+      tags: [Settings (Admin)]
+      summary: Recalculate used_bytes from actual file sizes
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+responses:
+  BadRequest:
+    description: Bad request / validation error
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - $ref: '#/components/schemas/ApiError'
+            - $ref: '#/components/schemas/ValidationError'
+  Unauthorized:
+    description: Unauthorized / invalid token
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+  Forbidden:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+  NotFound:
+    description: Not found
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+  Conflict:
+    description: Conflict
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+  ServerError:
+    description: Internal server error
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'

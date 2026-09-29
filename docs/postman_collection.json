@@ -1,0 +1,367 @@
+{
+  "info": {
+    "name": "PENTACLOUD API",
+    "description": "PENTACLOUD Backend API Collection\n\nBase URL: {{baseUrl}}\nAuth: {{accessToken}} (header) + refreshToken (cookie)\n\nSet up environment variables:\n- baseUrl: https://your-backend.onrender.com/api (or http://localhost:4000/api)\n- accessToken: (auto-filled after login)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "pentacloud-api"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "folderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shareToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/signup",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"securepassword123\",\n  \"name\": \"John Doe\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"securepassword123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/refresh",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout",
+            "header": []
+          }
+        },
+        {
+          "name": "Get Current User (/me)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "List Files",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/files",
+            "header": [],
+            "queryParams": [
+              { "key": "folderId", "value": "{{folderId}}", "disabled": true, "description": "Optional folder UUID" },
+              { "key": "search", "value": "", "disabled": true, "description": "Optional search query" }
+            ]
+          }
+        },
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/files/upload",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data", "disabled": true, "description": "Do NOT set manually - Postman sets boundary automatically" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "folderId", "type": "text", "value": "{{folderId}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Download File",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/files/{{fileId}}/download",
+            "header": []
+          }
+        },
+        {
+          "name": "Rename/Move File",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/files/{{fileId}}",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"new-name.pdf\",\n  \"folderId\": \"{{folderId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/files/{{fileId}}",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Folders",
+      "item": [
+        {
+          "name": "List Folders (flat)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/folders",
+            "header": []
+          }
+        },
+        {
+          "name": "Folder Tree (nested)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/folders/tree",
+            "header": []
+          }
+        },
+        {
+          "name": "Create Folder",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/folders",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Folder\",\n  \"parentId\": \"{{folderId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Rename/Move Folder",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/folders/{{folderId}}",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Name\",\n  \"parentId\": \"{{folderId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Folder",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/folders/{{folderId}}",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shares",
+      "item": [
+        {
+          "name": "Create Share Link",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/shares",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"{{fileId}}\",\n  \"expiresInHours\": 24\n}"
+            }
+          }
+        },
+        {
+          "name": "Download via Share Link",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/shares/{{shareToken}}",
+            "header": []
+          }
+        },
+        {
+          "name": "Delete Share Link",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/shares/{{shareToken}}",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "Get Storage Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/storage/stats",
+            "header": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings (Admin)",
+      "item": [
+        {
+          "name": "List B2 Accounts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/settings/b2-accounts",
+            "header": []
+          }
+        },
+        {
+          "name": "Add B2 Account",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/settings/b2-accounts",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Account 1\",\n  \"keyId\": \"000000000000000000000001\",\n  \"appKey\": \"K00000000000000000000000000000000000\",\n  \"bucketName\": \"pentacloud-1\",\n  \"bucketEndpoint\": \"s3.us-east-005.backblazeb2.com\",\n  \"maxSizeGb\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete B2 Account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/settings/b2-accounts/{{accountId}}",
+            "header": []
+          }
+        },
+        {
+          "name": "Reconcile Storage (Sync Storage)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/settings/b2-accounts/reconcile",
+            "header": []
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "if (pm.response.code === 200 || pm.response.code === 201) {",
+          "  const json = pm.response.json();",
+          "  if (json.accessToken) {",
+          "    pm.environment.set('accessToken', json.accessToken);",
+          "    console.log('Access token saved to environment');",
+          "  }",
+          "  if (json.user?.id) {",
+          "    console.log('User:', json.user.email, json.user.role);",
+          "  }",
+          "  if (json.id && json.mime_type) {",
+          "    pm.environment.set('fileId', json.id);",
+          "    console.log('File ID saved:', json.id);",
+          "  }",
+          "  if (json.id && json.name && !json.mime_type) {",
+          "    pm.environment.set('folderId', json.id);",
+          "    console.log('Folder ID saved:', json.id);",
+          "  }",
+          "  if (json.token) {",
+          "    pm.environment.set('shareToken', json.token);",
+          "    console.log('Share token saved:', json.token);",
+          "  }",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ]
+}
