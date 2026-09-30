@@ -10,7 +10,7 @@ interface File {
 
 interface ShareModalProps {
   file: File;
-  onCreate: (fileId: string, expiresInHours?: number) => Promise<{ token: string; shareUrl: string; expiresAt: number | null } | null>;
+  onCreate: (fileId: string, expiresInHours?: number) => Promise<{ token: string; shareUrl: string; expiresAt: string | null } | null>;
   onClose: () => void;
 }
 
