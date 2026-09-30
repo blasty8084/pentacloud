@@ -14,7 +14,8 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  hydrate: () => Promise<void>;
   loading: boolean;
 }
 
@@ -25,14 +26,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const hydrate = async () => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+      try {
+        const response = await authApi.me();
+        const freshUser = response.data.user;
+        setUser(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+      }
     }
     setLoading(false);
+  };
+
+  useEffect(() => {
+    hydrate();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -53,15 +69,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, hydrate, loading }}>
       {children}
     </AuthContext.Provider>
   );
