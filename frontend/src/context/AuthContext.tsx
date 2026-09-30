@@ -1,13 +1,20 @@
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi, tokenStorage, type User } from '../api/client';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { authApi } from '../api/client';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   loading: boolean;
 }
 
@@ -18,56 +25,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state from memory (tokenStorage) on app load
   useEffect(() => {
-    const storedToken = tokenStorage.getToken();
-    // We don't persist user in localStorage anymore - we'll fetch from /me
-    if (storedToken) {
-      // Try to restore session via /me endpoint
-      const restoreSession = async () => {
-        try {
-          const response = await authApi.me();
-          setUser(response.data.user);
-        } catch {
-          // Session invalid, clear token
-          tokenStorage.clearToken();
-        } finally {
-          setLoading(false);
-        }
-      };
-      restoreSession();
-    } else {
-      setLoading(false);
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
     }
+    setLoading(false);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
     const { accessToken: newToken, user: newUser } = response.data;
-    tokenStorage.setToken(newToken);
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-  }, []);
+  };
 
-  const signup = useCallback(async (email: string, password: string, name?: string) => {
+  const signup = async (email: string, password: string, name?: string) => {
     const response = await authApi.signup({ email, password, name });
     const { accessToken: newToken, user: newUser } = response.data;
-    tokenStorage.setToken(newToken);
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-  }, []);
+  };
 
-  const logout = useCallback(async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // Ignore logout errors
-    } finally {
-      tokenStorage.clearToken();
-      setToken(null);
-      setUser(null);
-    }
-  }, []);
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  };
 
   return (
     <AuthContext.Provider value={{ user, token, login, signup, logout, loading }}>
