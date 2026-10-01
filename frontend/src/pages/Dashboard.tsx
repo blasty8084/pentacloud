@@ -310,6 +310,7 @@ export default function Dashboard() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error('Download failed:', err);
     }
@@ -352,6 +353,7 @@ export default function Dashboard() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error('Download failed:', err);
     }

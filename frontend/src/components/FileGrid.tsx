@@ -81,7 +81,7 @@ export function FileGrid({
           {/* Image thumbnail preview */}
           {file.mime_type?.startsWith('image/') && (
             <img
-              src={`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/files/${file.id}/download`}
+              src={`${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000/api' : ''))}/files/${file.id}/download}`}
               alt={file.name}
               className="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               loading="lazy"

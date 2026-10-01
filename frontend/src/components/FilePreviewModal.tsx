@@ -7,6 +7,7 @@ import {
 import * as pdfjsLib from 'pdfjs-dist';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
+import DOMPurify from 'dompurify';
 import { filesApi } from '../api/client';
 import { formatBytes } from '../utils/format';
 
@@ -98,7 +99,7 @@ export function FilePreviewModal({
           
           if (fileType.current === 'markdown') {
             const { marked } = await import('marked');
-            setMarkdownHtml(marked.parse(text) as string);
+            setMarkdownHtml(DOMPurify.sanitize(marked.parse(text) as string));
           }
           
           if (fileType.current === 'csv') {

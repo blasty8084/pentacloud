@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000/api' : '');
+
+if (!API_URL && !import.meta.env.DEV) {
+  console.error('[API] VITE_API_URL is required in production. Set it in your deployment environment.');
+}
 
 export const api = axios.create({
   baseURL: API_URL,
