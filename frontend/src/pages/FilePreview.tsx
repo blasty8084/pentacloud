@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Download, X, RotateCcw, RotateCw, ZoomIn, ZoomOut, File as FileIcon } from 'lucide-react';
 import { filesApi } from '../api/client';
@@ -20,6 +20,7 @@ export default function FilePreview() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const previewUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!fileId) return;
@@ -31,6 +32,12 @@ export default function FilePreview() {
       const response = await filesApi.download(fileId!);
       const blob = new Blob([response.data]);
       const url = URL.createObjectURL(blob);
+      
+      // Revoke previous object URL if it exists and is different
+      if (previewUrlRef.current && previewUrlRef.current !== url) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+      previewUrlRef.current = url;
       setPreviewUrl(url);
 
       const contentDisposition = response.headers['content-disposition'];
@@ -70,21 +77,29 @@ export default function FilePreview() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      // Revoke download URL after a short delay to allow browser to start download
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error('Download failed:', err);
     }
   };
 
   const handleClose = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     navigate('/dashboard');
   };
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
     };
-  }, [previewUrl]);
+  }, []);
 
   if (loading) {
     return (
