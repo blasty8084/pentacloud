@@ -22,6 +22,8 @@ export const colors = {
     tertiary: '#475569',
     border: '#334155',
     borderHover: '#475569',
+    elevated: '#1E293B',
+    overlay: '#0F172A',
   },
   text: {
     primary: '#F1F5F9',
@@ -29,6 +31,7 @@ export const colors = {
     tertiary: '#64748B',
     inverse: '#0F172A',
     onAccent: '#FFFFFF',
+    muted: '#475569',
   },
   status: {
     success: '#10B981',
@@ -69,11 +72,11 @@ export const borderRadius = {
 };
 
 export const shadows = {
-  sm: '0 1px 2px 0 rgb(0 0 0 / 0.3)',
-  md: '0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3)',
-  lg: '0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3)',
-  xl: '0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3)',
-  inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.3)',
+  sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+  lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
+  xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05)',
+  inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
 };
 
 export const typography = {
@@ -128,8 +131,8 @@ export const breakpoints = {
 };
 
 export const layout = {
-  sidebarWidth: '260px',
-  sidebarCollapsedWidth: '72px',
+  sidebarWidth: '280px',
+  sidebarCollapsedWidth: '80px',
   headerHeight: '64px',
   maxContentWidth: '1400px',
 };
@@ -270,3 +273,74 @@ export function t(key: string, lang: Language = 'en'): string {
   }
   return key;
 }
+
+export const semanticColors = {
+  light: {
+    bg: {
+      primary: '#F8FAFC',
+      secondary: '#F1F5F9',
+      tertiary: '#E2E8F0',
+      hover: '#E2E8F0',
+      active: '#CBD5E1',
+    },
+    surface: {
+      primary: '#FFFFFF',
+      secondary: '#F8FAFC',
+      tertiary: '#F1F5F9',
+      border: '#E2E8F0',
+      borderHover: '#CBD5E1',
+      elevated: '#FFFFFF',
+      overlay: '#F8FAFC',
+    },
+    text: {
+      primary: '#0F172A',
+      secondary: '#475569',
+      tertiary: '#94A3B8',
+      inverse: '#F8FAFC',
+      onAccent: '#FFFFFF',
+      muted: '#94A3B8',
+    },
+    shadow: {
+      sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+      lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05)',
+      xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05)',
+      inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
+    },
+  },
+  dark: {
+    bg: {
+      primary: '#0F172A',
+      secondary: '#1E293B',
+      tertiary: '#334155',
+      hover: '#475569',
+      active: '#64748B',
+    },
+    surface: {
+      primary: '#1E293B',
+      secondary: '#334155',
+      tertiary: '#475569',
+      border: '#334155',
+      borderHover: '#475569',
+      elevated: '#1E293B',
+      overlay: '#0F172A',
+    },
+    text: {
+      primary: '#F1F5F9',
+      secondary: '#94A3B8',
+      tertiary: '#64748B',
+      inverse: '#0F172A',
+      onAccent: '#FFFFFF',
+      muted: '#475569',
+    },
+    shadow: {
+      sm: '0 1px 2px 0 rgb(0 0 0 / 0.3)',
+      md: '0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3)',
+      lg: '0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3)',
+      xl: '0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3)',
+      inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.3)',
+    },
+  },
+};
+
+export type ThemeMode = 'light' | 'dark' | 'system';
