@@ -723,22 +723,38 @@ async getAccountWithMostSpace() {
     });
   }
 
-  async downloadFile(accountId, b2FileName) {
+  async downloadFile(accountId, b2FileName, b2FileId) {
     return this.executeDownloadWithRetry(accountId, async (client, authToken) => {
       const { b2, account } = client;
-      console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloading file "${b2FileName}"`);
+      console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloading file "${b2FileName}" (b2FileId: ${b2FileId || 'N/A'})`);
       
       try {
-        const response = await b2.downloadFileByName({
-          bucketName: account.bucket_name,
-          fileName: b2FileName,
-          responseType: 'stream',
-          authorization: authToken,
-        });
+        // Prefer downloadFileById if we have the file ID (more reliable)
+        let response;
+        if (b2FileId) {
+          console.log(`[B2 DOWNLOAD] Using downloadFileById for "${b2FileName}"`);
+          response = await b2.downloadFileById({
+            fileId: b2FileId,
+            responseType: 'stream',
+            authorization: authToken,
+          });
+        } else {
+          console.log(`[B2 DOWNLOAD] Using downloadFileByName for "${b2FileName}" (no file ID available)`);
+          response = await b2.downloadFileByName({
+            bucketName: account.bucket_name,
+            fileName: b2FileName,
+            responseType: 'stream',
+            authorization: authToken,
+          });
+        }
         
         console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloaded "${b2FileName}" successfully`);
         return response.data;
       } catch (err) {
+        // Log the FULL B2 error response for debugging
+        if (err.response?.data) {
+          console.error(`[B2 DOWNLOAD] B2 error response for "${b2FileName}":`, JSON.stringify(err.response.data, null, 2));
+        }
         console.error(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) failed to download "${b2FileName}": ${this.sanitizeError(err)}`);
         throw err;
       }
