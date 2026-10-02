@@ -507,9 +507,9 @@ export function FileView({
                 onMove={onMove}
                 onDelete={onDelete}
                 onShare={onShare}
-                getFileIcon={getFileIcon}
                 formatSize={formatSize}
                 formatDate={formatDate}
+                t={t}
               />
             )}
           </div>

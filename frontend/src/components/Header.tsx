@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { SearchBar } from './SearchBar';
 import { Button } from './Button';
+import { accentOptions } from '../design/tokens';
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -203,23 +204,26 @@ export function Header({
                 className="absolute right-0 mt-2 w-44 card animate-scale-in shadow-xl p-2"
               >
                 <div className="grid grid-cols-3 gap-1.5">
-                  {accents.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => { setAccent(color); setShowAccentMenu(false); }}
-                      className={`p-2 rounded-lg transition-all duration-200 border-2 ${
-                        accent === color
-                          ? 'border-accent-primary scale-105'
-                          : 'border-transparent hover:border-surface-border'
-                      }`}
-                      aria-label={color}
-                    >
-                      <div 
-                        className="w-full h-6 rounded-md"
-                        style={{ backgroundColor: `var(--color-accent-primary)` }}
-                      />
-                    </button>
-                  ))}
+                  {accents.map(color => {
+                    const accentConfig = accentOptions[color];
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => { setAccent(color); setShowAccentMenu(false); }}
+                        className={`p-2 rounded-lg transition-all duration-200 border-2 ${
+                          accent === color
+                            ? 'border-accent-primary scale-105'
+                            : 'border-transparent hover:border-surface-border'
+                        }`}
+                        aria-label={accentConfig.name}
+                      >
+                        <div 
+                          className="w-full h-6 rounded-md"
+                          style={{ backgroundColor: accentConfig.primary }}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

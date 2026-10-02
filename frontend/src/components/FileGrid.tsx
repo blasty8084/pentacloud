@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { MoreVertical, Download, Edit, Trash2, Share2, Eye, Image, FileText, File, ChevronRight } from 'lucide-react';
 import { Menu, MenuItem, MenuTrigger } from './Menu';
 import { formatBytes } from '../utils/format';
+import { FileIcon, getFileTypeColor } from './FileIcon';
 
 interface File {
   id: string;
@@ -23,9 +24,9 @@ interface FileGridProps {
   onMove: (file: File) => void;
   onDelete: (id: string, type: 'file' | 'folder') => void;
   onShare: (file: File) => void;
-  getFileIcon: (mimeType: string) => ReactNode;
   formatSize: (bytes: number) => string;
   formatDate: (timestamp: number) => string;
+  t: (key: string) => string;
 }
 
 export function FileGrid({
@@ -37,38 +38,18 @@ export function FileGrid({
   onMove,
   onDelete,
   onShare,
-  getFileIcon,
   formatSize,
   formatDate,
+  t,
 }: FileGridProps) {
-  const getFileType = (mimeType: string) => {
-    if (mimeType?.startsWith('image/')) return 'image';
-    if (mimeType === 'application/pdf') return 'pdf';
-    if (mimeType?.startsWith('video/')) return 'video';
-    if (mimeType?.startsWith('audio/')) return 'audio';
-    if (mimeType?.startsWith('text/')) return 'text';
-    return 'file';
-  };
-
-  const getFileTypeColor = (type: string) => {
-    switch (type) {
-      case 'image': return 'text-green-500 bg-green-500/10';
-      case 'pdf': return 'text-red-500 bg-red-500/10';
-      case 'video': return 'text-purple-500 bg-purple-500/10';
-      case 'audio': return 'text-orange-500 bg-orange-500/10';
-      case 'text': return 'text-blue-500 bg-blue-500/10';
-      default: return 'text-gray-500 bg-gray-500/10';
-    }
-  };
 
   const renderFileCard = (file: File) => {
-    const type = getFileType(file.mime_type);
-    const typeColor = getFileTypeColor(type);
+    const typeColor = getFileTypeColor(file.mime_type, file.name);
     
     return (
       <div
         key={file.id}
-        className="group relative bg-surface border border-surface-border rounded-2xl p-4 transition-all duration-300 hover:border-surface-border-hover hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+        className="group relative card-hover bg-surface border border-surface-border rounded-2xl p-4 transition-all duration-300 hover:border-surface-border-hover hover:shadow-lg hover:-translate-y-1 cursor-pointer"
         onClick={() => onPreview(file)}
         role="button"
         tabIndex={0}
@@ -76,7 +57,7 @@ export function FileGrid({
       >
         {/* File Preview Area */}
         <div className="aspect-square bg-surface-secondary rounded-xl flex items-center justify-center mb-4 relative overflow-hidden">
-          {getFileIcon(file.mime_type)}
+          <FileIcon mimeType={file.mime_type} fileName={file.name} className="w-12 h-12 text-text-tertiary" />
           
           {/* Image thumbnail preview */}
           {file.mime_type?.startsWith('image/') && (
@@ -90,7 +71,11 @@ export function FileGrid({
           
           {/* File type badge */}
           <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${typeColor}`}>
-            {type.toUpperCase()}
+            {file.mime_type?.startsWith('image/') ? 'IMG' : 
+             file.mime_type === 'application/pdf' ? 'PDF' :
+             file.mime_type?.startsWith('video/') ? 'VID' :
+             file.mime_type?.startsWith('audio/') ? 'AUD' :
+             file.mime_type?.startsWith('text/') ? 'TXT' : 'FILE'}
           </div>
         </div>
 
@@ -119,27 +104,27 @@ export function FileGrid({
               </MenuTrigger>
               <MenuItem onClick={() => onPreview(file)}>
                 <Eye className="w-4 h-4" />
-                Preview
+                <span>{t('Preview')}</span>
               </MenuItem>
               <MenuItem onClick={() => onDownload(file)}>
                 <Download className="w-4 h-4" />
-                Download
-              </MenuItem>
-              <MenuItem onClick={() => onShare(file)}>
-                <Share2 className="w-4 h-4" />
-                Share
+                <span>{t('Download')}</span>
               </MenuItem>
               <MenuItem onClick={() => onRename(file)}>
                 <Edit className="w-4 h-4" />
-                Rename
+                <span>{t('Rename')}</span>
               </MenuItem>
               <MenuItem onClick={() => onMove(file)}>
                 <ChevronRight className="w-4 h-4" />
-                Move
+                <span>{t('Move')}</span>
+              </MenuItem>
+              <MenuItem onClick={() => onShare(file)}>
+                <Share2 className="w-4 h-4" />
+                <span>{t('Share')}</span>
               </MenuItem>
               <MenuItem onClick={() => onDelete(file.id, 'file')} className="text-accent-danger">
                 <Trash2 className="w-4 h-4" />
-                Delete
+                <span>{t('Delete')}</span>
               </MenuItem>
             </Menu>
           </div>
@@ -149,30 +134,20 @@ export function FileGrid({
   };
 
   const renderFileRow = (file: File) => {
-    const type = getFileType(file.mime_type);
-    const typeColor = getFileTypeColor(type);
-
     return (
-      <tr key={file.id} className="border-b border-surface-border hover:bg-surface-secondary/50 transition-colors">
+      <tr className="hover:bg-surface-secondary/50 transition-colors">
         <td className="px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${typeColor}`}>
-              {getFileIcon(file.mime_type)}
-            </div>
+          <div className="flex items-center gap-3">
+            <FileIcon mimeType={file.mime_type} fileName={file.name} className="w-10 h-10" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate max-w-xs" title={file.name}>
-                {file.name}
-              </p>
-              <p className="text-xs text-text-tertiary flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary/50" />
-                {formatDate(file.created_at)}
-              </p>
+              <p className="text-sm font-medium text-text-primary truncate" title={file.name}>{file.name}</p>
+              <p className="text-xs text-text-tertiary">{file.mime_type}</p>
             </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-text-secondary hidden sm:table-cell">{formatSize(file.size)}</td>
-        <td className="px-4 py-3 text-sm text-text-tertiary hidden md:table-cell">{formatDate(file.created_at)}</td>
-        <td className="px-4 py-3 text-right">
+        <td className="px-4 py-3 text-sm text-text-secondary">{formatSize(file.size)}</td>
+        <td className="px-4 py-3 text-sm text-text-tertiary">{formatDate(file.created_at)}</td>
+        <td className="px-4 py-3">
           <Menu>
             <MenuTrigger asChild>
               <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="More options">
@@ -181,27 +156,27 @@ export function FileGrid({
             </MenuTrigger>
             <MenuItem onClick={() => onPreview(file)}>
               <Eye className="w-4 h-4" />
-              Preview
+              <span>{t('Preview')}</span>
             </MenuItem>
             <MenuItem onClick={() => onDownload(file)}>
               <Download className="w-4 h-4" />
-              Download
-            </MenuItem>
-            <MenuItem onClick={() => onShare(file)}>
-              <Share2 className="w-4 h-4" />
-              Share
+              <span>{t('Download')}</span>
             </MenuItem>
             <MenuItem onClick={() => onRename(file)}>
               <Edit className="w-4 h-4" />
-              Rename
+              <span>{t('Rename')}</span>
             </MenuItem>
             <MenuItem onClick={() => onMove(file)}>
               <ChevronRight className="w-4 h-4" />
-              Move
+              <span>{t('Move')}</span>
+            </MenuItem>
+            <MenuItem onClick={() => onShare(file)}>
+              <Share2 className="w-4 h-4" />
+              <span>{t('Share')}</span>
             </MenuItem>
             <MenuItem onClick={() => onDelete(file.id, 'file')} className="text-accent-danger">
               <Trash2 className="w-4 h-4" />
-              Delete
+              <span>{t('Delete')}</span>
             </MenuItem>
           </Menu>
         </td>
@@ -209,33 +184,29 @@ export function FileGrid({
     );
   };
 
-  if (viewMode === 'list') {
+  if (viewMode === 'grid') {
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full" role="grid">
-          <thead>
-            <tr className="border-b border-surface-border text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">
-              <th className="px-4 py-3">{'Name'}</th>
-              <th className="px-4 py-3 hidden sm:table-cell">{'Size'}</th>
-              <th className="px-4 py-3 hidden md:table-cell">{'Modified'}</th>
-              <th className="px-4 py-3 text-right">{'Actions'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {files.map(renderFileRow)}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {files.map(renderFileCard)}
       </div>
     );
   }
 
   return (
-    <div
-      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-      role="list"
-      aria-label="Files"
-    >
-      {files.map(renderFileCard)}
+    <div className="overflow-x-auto">
+      <table className="w-full" role="grid">
+        <thead>
+          <tr className="border-b border-surface-border">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">{t('Name')}</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">{t('Size')}</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">{t('Date Modified')}</th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wider">{t('Actions')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-surface-border">
+          {files.map(renderFileRow)}
+        </tbody>
+      </table>
     </div>
   );
 }

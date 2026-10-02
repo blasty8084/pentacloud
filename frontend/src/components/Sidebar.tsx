@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { formatBytes } from '../utils/format';
+import { Button } from './Button';
 
 interface FolderItem {
   id: string;
@@ -233,13 +234,9 @@ export function Sidebar({
         <div className="border-t border-surface-border px-3 py-3 space-y-3">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">Folders</h3>
-            <button
-              onClick={() => setCreatingFolderId('root')}
-              className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
-              aria-label="Create folder"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setCreatingFolderId('root')} aria-label="Create folder">
               <Plus className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           <button
@@ -273,13 +270,10 @@ export function Sidebar({
             ))}
           </div>
 
-          <button
-            onClick={() => setCreatingFolderId('root')}
-            className="w-full flex items-center justify-center gap-2 px-2.5 py-2 text-sm text-text-tertiary hover:text-text-primary hover:bg-surface-secondary rounded-xl transition-colors mt-1"
-          >
+          <Button variant="ghost" size="sm" className="w-full justify-center" onClick={() => setCreatingFolderId('root')}>
             <FolderPlus className="w-4 h-4" />
             <span>New folder</span>
-          </button>
+          </Button>
         </div>
       )}
 

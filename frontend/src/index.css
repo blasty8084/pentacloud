@@ -528,3 +528,82 @@ input[type="number"] {
   border-radius: var(--radius-md);
   animation: shimmer 1.5s infinite;
 }
+
+/* Skeleton variants */
+.skeleton-text {
+  height: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  width: 60%;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-card {
+  border-radius: var(--radius-xl);
+  min-height: 200px;
+}
+
+/* Toast styles */
+.toast {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-4);
+  max-width: 400px;
+  animation: slide-in-right var(--transition-normal);
+}
+
+.toast-success {
+  border-left: 4px solid var(--color-accent-success);
+}
+
+.toast-error {
+  border-left: 4px solid var(--color-accent-danger);
+}
+
+.toast-warning {
+  border-left: 4px solid var(--color-accent-warning);
+}
+
+.toast-info {
+  border-left: 4px solid var(--color-accent-info);
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--color-accent-primary);
+  ring-offset: 2px;
+  ring-offset-color: var(--color-bg);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-surface-border: var(--color-text-primary);
+    --color-surface-border-hover: var(--color-text-primary);
+  }
+}

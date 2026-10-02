@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
 }
@@ -14,8 +14,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const variants = {
       primary: 'bg-accent-primary text-text-on-accent hover:bg-accent-primary-hover focus:ring-accent-primary-light',
       secondary: 'bg-surface-tertiary text-text-primary border border-surface-border hover:bg-surface-border hover:border-surface-border-hover focus:ring-surface-border',
+      outline: 'border border-surface-border text-text-primary hover:bg-surface-secondary hover:border-surface-border-hover focus:ring-surface-border',
+      ghost: 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary focus:ring-surface-border',
       danger: 'bg-accent-danger text-text-on-accent hover:bg-red-600 focus:ring-accent-danger/50',
-      ghost: 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary',
+      link: 'text-accent-primary hover:text-accent-primary-hover underline-offset-2 hover:underline focus:ring-accent-primary-light',
     };
 
     const sizes = {
@@ -32,7 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {loading && (
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>

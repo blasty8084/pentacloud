@@ -4,6 +4,7 @@ import { Upload, X, Loader2, CheckCircle, AlertCircle, Image, FileText, File, Ar
 import { useUpload } from '../context/UploadContext';
 import { formatBytes } from '../utils/format';
 import { Button } from './Button';
+import { FileIcon } from './FileIcon';
 
 interface UploadZoneProps {
   onUpload: (file: File, folderId?: string, onProgress?: (percent: number) => void) => Promise<void>;
@@ -116,7 +117,7 @@ export function UploadZone({ onUpload, folderId, disabled }: UploadZoneProps) {
       {previewFiles.map((file, index) => (
         <div key={index} className="card p-3 flex items-center gap-3 animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
           <div className="w-12 h-12 rounded-xl bg-surface-secondary flex items-center justify-center flex-shrink-0">
-            <FileIcon file={file} className="w-6 h-6 text-text-tertiary" />
+            <FileIcon mimeType={file.type} fileName={file.name} className="w-6 h-6 text-text-tertiary" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
@@ -162,13 +163,4 @@ export function UploadZone({ onUpload, folderId, disabled }: UploadZoneProps) {
       ))}
     </div>
   );
-}
-
-function FileIcon({ file, className }: { file: File; className?: string }) {
-  if (file.type.startsWith('image/')) return <Image className={className} />;
-  if (file.type === 'application/pdf') return <FileText className={className} />;
-  if (file.type.startsWith('text/')) return <FileText className={className} />;
-  if (file.type.startsWith('video/')) return <FileText className={className} />;
-  if (file.type.startsWith('audio/')) return <FileText className={className} />;
-  return <File className={className} />;
 }

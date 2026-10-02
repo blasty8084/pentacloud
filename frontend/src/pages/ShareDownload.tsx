@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, AlertCircle, FileText, Image, File } from 'lucide-react';
+import { Download, AlertCircle, FileText, Image, File, ArrowLeft } from 'lucide-react';
 import { sharesApi } from '../api/client';
 import { formatBytes } from '../utils/format';
+import { Button } from '../components/Button';
+import { FileIcon } from '../components/FileIcon';
+import { Card } from '../components/Card';
 
 export default function ShareDownload() {
   const { token } = useParams<{ token: string }>();
@@ -58,6 +61,7 @@ export default function ShareDownload() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error('Download failed:', err);
       setError('Download failed');
@@ -66,31 +70,25 @@ export default function ShareDownload() {
     }
   };
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType?.startsWith('image/')) return <Image className="w-12 h-12 text-green-500" />;
-    if (mimeType === 'application/pdf') return <FileText className="w-12 h-12 text-red-500" />;
-    if (mimeType?.startsWith('text/')) return <FileText className="w-12 h-12 text-blue-500" />;
-    return <File className="w-12 h-12 text-gray-500" />;
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Unable to Access File</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <a href="/" className="text-blue-600 hover:text-blue-700 font-medium">
+          <AlertCircle className="w-16 h-16 text-accent-danger mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Unable to Access File</h1>
+          <p className="text-text-secondary mb-6">{error}</p>
+          <Button variant="ghost" onClick={() => window.location.href = '/'}>
+            <ArrowLeft className="w-4 h-4" />
             Go to PENTACLOUD
-          </a>
+          </Button>
         </div>
       </div>
     );
@@ -98,40 +96,41 @@ export default function ShareDownload() {
 
   if (!file) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
         <div className="text-center">
-          <File className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">File Not Found</h1>
-          <p className="text-gray-600">This share link doesn't contain a valid file.</p>
+          <File className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-text-primary mb-2">File Not Found</h1>
+          <p className="text-text-tertiary">This share link doesn't contain a valid file.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+    <div className="min-h-screen flex items-center justify-center bg-bg px-4 py-12">
+      <Card className="w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
-            {getFileIcon(file.mimeType)}
+          <div className="w-20 h-20 rounded-2xl bg-accent-primary-light flex items-center justify-center mx-auto mb-4">
+            <FileIcon mimeType={file.mimeType} fileName={file.name} className="w-12 h-12" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 truncate" title={file.name}>{file.name}</h1>
-          <p className="text-gray-500 mt-1">{formatBytes(file.size)}</p>
+          <h1 className="text-xl font-bold text-text-primary truncate" title={file.name}>{file.name}</h1>
+          <p className="text-text-secondary mt-1">{formatBytes(file.size)}</p>
         </div>
 
         <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center justify-between p-3 bg-surface-secondary/50 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
               <FileText className="w-4 h-4" />
               <span>Ready to download</span>
             </div>
           </div>
         </div>
 
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        <Button 
+          onClick={handleDownload} 
+          disabled={downloading} 
+          className="w-full"
+          size="lg"
         >
           {downloading ? (
             <>
@@ -147,12 +146,12 @@ export default function ShareDownload() {
               Download File
             </>
           )}
-        </button>
+        </Button>
 
-        <p className="text-center text-xs text-gray-500 mt-4">
+        <p className="text-center text-xs text-text-tertiary mt-4">
           This is a secure share link from PENTACLOUD
         </p>
-      </div>
+      </Card>
     </div>
   );
 }
