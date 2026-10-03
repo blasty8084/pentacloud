@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUpload } from '../context/UploadContext';
 import { useTheme } from '../context/ThemeContext';
@@ -20,6 +20,9 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { AccentSelector } from '../components/AccentSelector';
 import { UserMenu } from '../components/UserMenu';
 import { FilePreviewModal } from '../components/FilePreviewModal';
+import { MobileBottomNav } from '../components/MobileBottomNav';
+import { MobileHeader } from '../components/MobileHeader';
+import { MobileSearchModal } from '../components/MobileSearchModal';
 import { formatBytes, formatDate } from '../utils/format';
 import {
   FolderPlus, LogOut, Menu, X, ChevronRight, ChevronLeft,
@@ -158,6 +161,7 @@ export default function Dashboard() {
   const [folderTree, setFolderTree] = useState<Folder[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -401,6 +405,15 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col text-text-primary">
+      {/* Mobile Header */}
+      <MobileHeader
+        title="PENTACLOUD"
+        onMenuClick={() => setSidebarCollapsed(false)}
+        onSearchClick={() => setMobileSearchOpen(true)}
+        t={t}
+      />
+
+      {/* Desktop Header */}
       <Header
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -473,6 +486,17 @@ export default function Dashboard() {
           {activeNav === 'settings' && <SettingsView t={t} />}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
+
+      {/* Mobile Search Modal */}
+      <MobileSearchModal
+        isOpen={mobileSearchOpen}
+        onClose={() => setMobileSearchOpen(false)}
+        currentFolderId={currentFolderId}
+        t={t}
+      />
 
       <Modal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} title={t('Create Share Link')} size="sm">
         <ShareModal file={selectedFile!} onCreate={handleCreateShare} onClose={() => setShareModalOpen(false)} />
