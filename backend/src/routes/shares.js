@@ -4,6 +4,7 @@ import b2Service from '../services/b2.js';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.js';
 import validators from '../middleware/validate.js';
+import { sanitizeError } from '../utils/sanitizeError.js';
 
 const router = Router();
 
@@ -42,13 +43,29 @@ router.get('/:token', optionalAuthMiddleware, validators.downloadShare, async (r
     }
 
     const file = fileResult.rows[0];
-    const stream = await b2Service.downloadFile(file.b2_account_id, file.b2_file_name);
+    const stream = await b2Service.downloadFile(file.b2_account_id, file.b2_file_name, file.b2_file_id);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
     res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
     res.setHeader('Content-Length', file.size);
     stream.pipe(res);
   } catch (err) {
-    console.error('Share download error:', err);
+    const sanitizedMessage = sanitizeError(err);
+    // Log the full B2 error response for debugging
+    if (err.response?.data) {
+      console.error(`[SHARE DOWNLOAD] B2 error response:`, JSON.stringify(err.response.data, null, 2));
+    }
+    console.error(`[SHARE DOWNLOAD] Failed for file ${file.id}:`, sanitizedMessage);
+    
+    // Handle specific B2 error codes
+    if (err.response?.status === 404 || err.response?.data?.code === 'file_not_present') {
+      return res.status(404).json({ error: 'File not found in storage' });
+    }
+    if (err.response?.status === 401 || err.response?.status === 403) {
+      return res.status(401).json({ error: 'Download authorization failed' });
+    }
+    if (err.response?.status === 400) {
+      return res.status(400).json({ error: 'Invalid download request' });
+    }
     res.status(500).json({ error: 'Download failed' });
   }
 });
