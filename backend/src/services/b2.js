@@ -731,12 +731,18 @@ async getAccountWithMostSpace() {
       try {
         // Prefer downloadFileById if we have the file ID (more reliable)
         let response;
+        const axiosOverride = {
+          headers: {
+            Authorization: authToken
+          }
+        };
+        
         if (b2FileId) {
           console.log(`[B2 DOWNLOAD] Using downloadFileById for "${b2FileName}"`);
           response = await b2.downloadFileById({
             fileId: b2FileId,
             responseType: 'stream',
-            authorization: authToken,
+            axiosOverride,
           });
         } else {
           console.log(`[B2 DOWNLOAD] Using downloadFileByName for "${b2FileName}" (no file ID available)`);
@@ -744,7 +750,7 @@ async getAccountWithMostSpace() {
             bucketName: account.bucket_name,
             fileName: b2FileName,
             responseType: 'stream',
-            authorization: authToken,
+            axiosOverride,
           });
         }
         
