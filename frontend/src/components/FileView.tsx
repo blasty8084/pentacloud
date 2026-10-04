@@ -2,16 +2,18 @@ import {
   Folder, ChevronRight, ChevronLeft, Upload, Search, 
   Grid, List, MoreHorizontal, Download, Upload as UploadIcon,
   FileText, Image, File, Clock, TrendingUp, Activity,
-  Plus, Settings, Filter, ChevronDown, X
+  Plus, Settings, Filter, ChevronDown, X, Share
 } from 'lucide-react';
 import { UploadZone } from '../components/UploadZone';
 import { FileGrid } from '../components/FileGrid';
 import { SearchBar } from '../components/SearchBar';
+import { MobileBottomSheet } from '../components/MobileBottomSheet';
+import { MobileBottomNav } from '../components/MobileBottomNav';
 import { formatBytes, formatDate } from '../utils/format';
 import { Button } from '../components/Button';
 import { storageApi } from '../api/client';
 import { useState, useEffect, useCallback } from 'react';
-import { MobileBottomSheet } from './MobileBottomSheet';
+import { StorageDashboard } from '../components/StorageDashboard';
 
 interface ActivityItem {
   id: string;
@@ -114,6 +116,11 @@ export function FileView({
   const [filterType, setFilterType] = useState<string>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
+  const [previewFile, setPreviewFile] = useState<BackendFile | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
 
   useEffect(() => {
     const activities: ActivityItem[] = files
@@ -190,7 +197,7 @@ export function FileView({
       {/* Toolbar */}
       <div className="flex-shrink-0 border-b border-surface-border bg-surface/50 backdrop-blur-sm">
         {/* Top Toolbar */}
-        <div className="flex items-center justify-between flex-wrap gap-3 p-4">
+        <div className="flex items-center justify-between h-[64px] px-4 border-b border-surface-border">
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-1 text-sm text-text-tertiary flex-1 min-w-0" aria-label="Breadcrumb">
             <button
@@ -237,244 +244,200 @@ export function FileView({
                   value={searchQuery}
                   onChange={setSearchQuery}
                   placeholder="Search in folder..."
-className="w-full"
-              />
+                  className="w-full"
+                />
+              </div>
+
+              {/* File Type Filters */}
+              <div className="flex flex-wrap items-center gap-1 border border-surface-border rounded-xl p-1" role="group" aria-label="File type filters">
+                {fileTypes.map(type => (
+                  <button
+                    key={type.id}
+                    onClick={() => setFilterType(type.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                      filterType === type.id
+                        ? 'bg-accent-primary-light text-accent-primary'
+                        : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                    }`}
+                  >
+                    <type.icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{type.label}</span>
+                    {type.count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                        filterType === type.id
+                          ? 'bg-accent-primary text-accent-primary-light'
+                          : 'bg-surface-tertiary text-text-tertiary'
+                      }`}>
+                        {type.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* File Type Filters */}
-            <div className="hidden md:flex flex-wrap items-center gap-1 border border-surface-border rounded-xl p-1" role="group" aria-label="File type filters">
+            {/* Right: Sort + View + Actions */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Sort */}
+              <div className="flex items-center gap-2 border border-surface-border rounded-xl px-2 py-1.5">
+                <label className="text-xs text-text-tertiary hidden sm:block">Sort</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-transparent border-none text-sm font-medium text-text-secondary focus:outline-none cursor-pointer min-w-[120px]"
+                  aria-label="Sort by"
+                >
+                  <option value="date">Date Modified</option>
+                  <option value="name">Name</option>
+                  <option value="size">Size</option>
+                </select>
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* View Mode */}
+              <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-xl transition-all duration-200 ${
+                    viewMode === 'grid' 
+                      ? 'bg-accent-primary-light text-accent-primary' 
+                      : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                  }`}
+                  aria-label="Grid view"
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-xl transition-all duration-200 ${
+                    viewMode === 'list' 
+                      ? 'bg-accent-primary-light text-accent-primary' 
+                      : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                  }`}
+                  aria-label="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedFile(null); setRenameModalOpen(true); }}>
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">New Folder</span>
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => { /* upload triggered via UploadZone */ }}>
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Upload</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Filter Bottom Sheet */}
+          <MobileBottomSheet
+            isOpen={mobileFilterOpen}
+            onClose={() => setMobileFilterOpen(false)}
+            title="Filter by Type"
+          >
+            <div className="space-y-2">
               {fileTypes.map(type => (
                 <button
                   key={type.id}
-                  onClick={() => setFilterType(type.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  onClick={() => { setFilterType(type.id); setMobileFilterOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
                     filterType === type.id
                       ? 'bg-accent-primary-light text-accent-primary'
-                      : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
                   }`}
                 >
-                  <type.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{type.label}</span>
-                  {type.count > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                      filterType === type.id
-                        ? 'bg-accent-primary text-accent-primary-light'
-                        : 'bg-surface-tertiary text-text-tertiary'
-                    }`}>
-                      {type.count}
-                    </span>
+                  <div className="w-10 h-10 rounded-xl bg-surface-secondary flex items-center justify-center flex-shrink-0">
+                    <type.icon className="w-5 h-5 text-text-tertiary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary">{type.label}</p>
+                    <p className="text-xs text-text-tertiary">{type.count} files</p>
+                  </div>
+                  {filterType === type.id && (
+                    <div className="w-5 h-5 rounded-full bg-accent-primary flex items-center justify-center">
+                      <X className="w-3 h-3 text-white" />
+                    </div>
                   )}
                 </button>
               ))}
             </div>
-          </div>
+          </MobileBottomSheet>
 
-          {/* Right: Sort + View + Actions */}
-          <div className="hidden md:flex items-center gap-2 w-full md:w-auto">
-            {/* Sort */}
-            <div className="flex items-center gap-2 border border-surface-border rounded-xl px-2 py-1.5">
-              <label className="text-xs text-text-tertiary hidden sm:block">Sort</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent border-none text-sm font-medium text-text-secondary focus:outline-none cursor-pointer min-w-[120px]"
-                aria-label="Sort by"
-              >
-                <option value="date">Date Modified</option>
-                <option value="name">Name</option>
-                <option value="size">Size</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
-                aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-              </button>
+          {/* Mobile Sort Bottom Sheet */}
+          <MobileBottomSheet
+            isOpen={mobileSortOpen}
+            onClose={() => setMobileSortOpen(false)}
+            title="Sort By"
+          >
+            <div className="space-y-2">
+              {(['date', 'name', 'size'] as const).map(option => (
+                <button
+                  key={option}
+                  onClick={() => { setSortBy(option); setMobileSortOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
+                    sortBy === option
+                      ? 'bg-accent-primary-light text-accent-primary'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-surface-secondary flex items-center justify-center flex-shrink-0">
+                    {option === 'date' && <Clock className="w-5 h-5 text-text-tertiary" />}
+                    {option === 'name' && <FileText className="w-5 h-5 text-text-tertiary" />}
+                    {option === 'size' && <FileText className="w-5 h-5 text-text-tertiary" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-text-primary">{option === 'date' ? 'Date Modified' : option === 'name' ? 'Name' : 'Size'}</p>
+                    <p className="text-xs text-text-tertiary">Sort by {option === 'date' ? 'Date Modified' : option === 'name' ? 'Name' : 'Size'}</p>
+                  </div>
+                  {sortBy === option && (
+                    <div className="w-5 h-5 rounded-full bg-accent-primary flex items-center justify-center">
+                      <X className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
+          </MobileBottomSheet>
+        </div>
 
-            {/* View Mode */}
-            <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-xl transition-all duration-200 ${
-                  viewMode === 'grid' 
-                    ? 'bg-accent-primary-light text-accent-primary' 
-                    : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-                  }`}
-                aria-label="Grid view"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-xl transition-all duration-200 ${
-                  viewMode === 'list' 
-                    ? 'bg-accent-primary-light text-accent-primary' 
-                    : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-                  }`}
-                aria-label="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
+        {/* Mobile Toolbar */}
+        <div className="md:hidden border-t border-surface-border bg-surface/50 backdrop-blur-sm p-3">
+          <div className="flex items-center justify-between gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search..."
+                className="w-full"
+              />
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => alert('New folder')}>
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">New Folder</span>
+              <Button variant="ghost" size="sm" onClick={() => { setMobileFilterOpen(true); }}>
+                <Filter className="w-5 h-5" />
               </Button>
-              <Button variant="primary" size="sm" onClick={() => alert('Upload')}>
+              <Button variant="ghost" size="sm" onClick={() => setMobileSortOpen(true)}>
+                <ChevronDown className="w-5 h-5" />
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => { /* upload */ }}>
                 <Upload className="w-4 h-4" />
-                <span className="hidden sm:inline">Upload</span>
               </Button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Mobile Toolbar */}
-      <div className="md:hidden border-t border-surface-border bg-surface/50 backdrop-blur-sm p-3">
-        <div className="flex items-center justify-between gap-3">
-          {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search..."
-              className="w-full"
-            />
-          </div>
-
-          {/* Filter Button */}
-          <button
-            onClick={() => setMobileFilterOpen(true)}
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 ${
-              filterType !== 'all' ? 'bg-accent-primary-light text-accent-primary' : 'text-text-secondary hover:bg-surface-secondary'
-            }`}
-            aria-label="Filter files"
-          >
-            <Filter className="w-5 h-5" />
-          </button>
-
-          {/* Sort Button */}
-          <button
-            onClick={() => setMobileSortOpen(true)}
-            className="p-2 rounded-xl text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors flex-shrink-0"
-            aria-label="Sort files"
-          >
-            <ChevronDown className={`w-5 h-5 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* View Mode */}
-          <div className="flex items-center gap-1 border border-surface-border rounded-xl p-1 flex-shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                viewMode === 'grid' 
-                  ? 'bg-accent-primary-light text-accent-primary' 
-                  : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-              }`}
-              aria-label="Grid view"
-            >
-              <Grid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                viewMode === 'list' 
-                  ? 'bg-accent-primary-light text-accent-primary' 
-                  : 'text-text-tertiary hover:text-text-primary hover:bg-surface-secondary'
-              }`}
-              aria-label="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Filter Bottom Sheet */}
-      <MobileBottomSheet
-        isOpen={mobileFilterOpen}
-        onClose={() => setMobileFilterOpen(false)}
-        title={t('Filter by Type')}
-      >
-        <div className="space-y-2">
-          {fileTypes.map(type => (
-            <button
-              key={type.id}
-              onClick={() => { setFilterType(type.id); setMobileFilterOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-                filterType === type.id
-                  ? 'bg-accent-primary-light text-accent-primary'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-surface-secondary flex items-center justify-center flex-shrink-0">
-                <type.icon className="w-5 h-5 text-text-tertiary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary">{type.label}</p>
-                <p className="text-xs text-text-tertiary">{type.count} files</p>
-              </div>
-              {filterType === type.id && (
-                <div className="w-5 h-5 rounded-full bg-accent-primary flex items-center justify-center">
-                  <X className="w-3 h-3 text-white" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </MobileBottomSheet>
-
-      {/* Mobile Sort Bottom Sheet */}
-      <MobileBottomSheet
-        isOpen={mobileSortOpen}
-        onClose={() => setMobileSortOpen(false)}
-        title={t('Sort by')}
-      >
-        <div className="space-y-1">
-          {[
-            { value: 'date', label: t('Date Modified') },
-            { value: 'name', label: t('Name') },
-            { value: 'size', label: t('Size') },
-          ].map(option => (
-            <button
-              key={option.value}
-              onClick={() => { setSortBy(option.value as any); setMobileSortOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-                sortBy === option.value
-                  ? 'bg-accent-primary-light text-accent-primary'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-              }`}
-            >
-              <div className="flex-1">
-                <p className="text-sm font-medium text-text-primary">{option.label}</p>
-              </div>
-              {sortBy === option.value && (
-                <div className="w-5 h-5 rounded-full bg-accent-primary flex items-center justify-center">
-                  <X className="w-3 h-3 text-white" />
-                </div>
-              )}
-            </button>
-          ))}
-          <div className="border-t border-surface-border my-2" />
-          <button
-            onClick={() => { setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); setMobileSortOpen(false); }}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors text-text-secondary hover:text-text-primary hover:bg-surface-secondary`}
-          >
-            <div className="flex-1">
-              <p className="text-sm font-medium">{sortOrder === 'asc' ? t('Ascending') : t('Descending')}</p>
-            </div>
-            <ChevronDown className={`w-5 h-5 transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-      </MobileBottomSheet>
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-auto">
       </div>
 
       {/* Content Area */}
@@ -652,6 +615,7 @@ className="w-full"
                 onMove={onMove}
                 onDelete={onDelete}
                 onShare={onShare}
+                getFileIcon={getFileIcon}
                 formatSize={formatSize}
                 formatDate={formatDate}
                 t={t}
@@ -659,6 +623,93 @@ className="w-full"
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StorageMeterMini({ t }: { t: (key: string) => string }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await storageApi.stats();
+        const data = response.data;
+        if (data && typeof data === 'object' && 
+            data.total && typeof data.total === 'object' &&
+            Array.isArray(data.accounts)) {
+          setStats(data);
+        } else {
+          console.error('Invalid storage stats response:', data);
+          setStats({
+            total: { used: 0, max: 0, free: 0, percentage: 0 },
+            accounts: []
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch storage stats:', err);
+        setStats({
+          total: { used: 0, max: 0, free: 0, percentage: 0 },
+          accounts: []
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading || !stats) return null;
+
+  const totalPercent = stats.total.percentage;
+  const getColor = (p: number) => p >= 90 ? 'bg-accent-danger' : p >= 70 ? 'bg-accent-warning' : 'bg-accent-primary';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-text-secondary">Total Storage</span>
+        <span className="font-medium text-text-primary">{formatBytes(stats.total.used)} / {formatBytes(stats.total.max)}</span>
+      </div>
+      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
+      </div>
+      <div className="flex justify-between text-xs text-text-tertiary">
+        <span>{formatBytes(stats.total.used)} {t('Used')}</span>
+        <span>{formatBytes(stats.total.max - stats.total.used)} {t('Free')}</span>
+      </div>
+    </div>
+  );
+}
+
+function SharedView({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="text-center text-text-tertiary">
+        <Share className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <h2 className="text-xl font-medium mb-2">{t('Shared')}</h2>
+        <p>Shared files and folders will appear here</p>
+      </div>
+    </div>
+  );
+}
+
+function StorageView({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-4 sm:p-0">
+      <div className="fixed inset-0 bg-overlay-backdrop z-modal" onClick={onClose} />
+      <StorageDashboard onClose={onClose} />
+    </div>
+  );
+}
+
+function SettingsView({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="flex-1 p-8 max-w-4xl mx-auto w-full">
+      <h1 className="text-2xl font-bold mb-6">{t('Settings')}</h1>
+      <div className="card p-6">
+        <p className="text-text-secondary">Settings page - Account, B2 accounts, Security, Danger Zone</p>
       </div>
     </div>
   );

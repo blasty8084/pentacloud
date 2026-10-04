@@ -1,6 +1,7 @@
 import B2 from 'backblaze-b2';
 import { query } from '../db/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 // Helper for logging bytes in human-readable format
 function formatBytes(bytes) {
@@ -729,30 +730,22 @@ async getAccountWithMostSpace() {
       console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloading file "${b2FileName}" (b2FileId: ${b2FileId || 'N/A'})`);
       
       try {
-        // Prefer downloadFileById if we have the file ID (more reliable)
-        let response;
-        const axiosOverride = {
-          headers: {
-            Authorization: authToken
-          }
-        };
+        // Use direct axios call with download authorization token as query parameter
+        // B2 requires the download auth token as a query parameter 'Authorization'
+        const downloadUrl = b2FileId
+          ? `${b2.downloadUrl}/b2api/v2/b2_download_file_by_id?fileId=${encodeURIComponent(b2FileId)}`
+          : `${b2.downloadUrl}/file/${encodeURIComponent(account.bucket_name)}/${encodeURIComponent(b2FileName)}`;
         
-        if (b2FileId) {
-          console.log(`[B2 DOWNLOAD] Using downloadFileById for "${b2FileName}"`);
-          response = await b2.downloadFileById({
-            fileId: b2FileId,
-            responseType: 'stream',
-            axiosOverride,
-          });
-        } else {
-          console.log(`[B2 DOWNLOAD] Using downloadFileByName for "${b2FileName}" (no file ID available)`);
-          response = await b2.downloadFileByName({
-            bucketName: account.bucket_name,
-            fileName: b2FileName,
-            responseType: 'stream',
-            axiosOverride,
-          });
-        }
+        const urlWithAuth = `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`;
+        
+        console.log(`[B2 DOWNLOAD] ${b2FileId ? 'downloadFileById' : 'downloadFileByName'} for "${b2FileName}"`);
+        
+        const axiosInstance = axios.create({
+          responseType: 'stream',
+          timeout: 0, // No timeout for downloads
+        });
+        
+        const response = await axiosInstance.get(urlWithAuth);
         
         console.log(`[B2 DOWNLOAD] Account "${account.name}" (${account.id}) downloaded "${b2FileName}" successfully`);
         return response.data;

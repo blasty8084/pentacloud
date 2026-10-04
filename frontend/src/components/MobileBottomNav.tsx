@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, FolderOpen, Share2, Settings, MoreHorizontal,
@@ -19,7 +19,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const { user, logout } = useAuth();
   const { themeMode, setThemeMode, accent, setAccent, language, setLanguage } = useTheme();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const moreMenuRef = useState<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = [
     { path: '/dashboard', label: 'Files', icon: Home, exact: true },

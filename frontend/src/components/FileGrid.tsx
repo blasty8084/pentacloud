@@ -24,6 +24,7 @@ interface FileGridProps {
   onMove: (file: File) => void;
   onDelete: (id: string, type: 'file' | 'folder') => void;
   onShare: (file: File) => void;
+  getFileIcon: (mimeType: string) => React.ReactNode;
   formatSize: (bytes: number) => string;
   formatDate: (timestamp: number) => string;
   t: (key: string) => string;
