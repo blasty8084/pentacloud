@@ -736,7 +736,10 @@ async getAccountWithMostSpace() {
           ? `${b2.downloadUrl}/b2api/v2/b2_download_file_by_id?fileId=${encodeURIComponent(b2FileId)}`
           : `${b2.downloadUrl}/file/${encodeURIComponent(account.bucket_name)}/${encodeURIComponent(b2FileName)}`;
         
-        const urlWithAuth = `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`;
+        // Use correct query separator: & for fileId (already has ?), ? for fileName (no query string)
+        const urlWithAuth = b2FileId
+          ? `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`
+          : `${downloadUrl}?Authorization=${encodeURIComponent(authToken)}`;
         
         console.log(`[B2 DOWNLOAD] ${b2FileId ? 'downloadFileById' : 'downloadFileByName'} for "${b2FileName}"`);
         
