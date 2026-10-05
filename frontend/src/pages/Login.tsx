@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Cloud, Lock, Mail } from 'lucide-react';
+import { Cloud, Lock, Mail, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,19 +28,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-bg px-4 py-8">
+      <div className="w-full max-w-md card p-6 sm:p-8 animate-slide-up">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
-            <Cloud className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-primary-light mx-auto mb-4">
+            <Cloud className="w-8 h-8 text-accent-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to PENTACLOUD</h1>
-          <p className="text-gray-500 mt-1">Sign in to access your unified cloud storage</p>
+          <h1 className="text-2xl font-bold text-text-primary">Welcome to PENTACLOUD</h1>
+          <p className="text-text-secondary mt-1">Sign in to access your unified cloud storage</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
             <Input
               label="Email"
               type="email"
@@ -52,7 +52,7 @@ export default function Login() {
             />
           </div>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-tertiary" />
             <Input
               label="Password"
               type="password"
@@ -65,7 +65,8 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
+            <div className="flex items-center gap-2 p-3 bg-accent-danger/10 border border-accent-danger/20 rounded-lg text-accent-danger text-sm" role="alert">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
               {error}
             </div>
           )}
@@ -75,11 +76,11 @@ export default function Login() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
+        <p className="mt-6 text-center text-sm text-text-tertiary">
+          Don&apos;t have an account?{' '}
           <button
             onClick={() => navigate('/signup')}
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="text-accent-primary hover:text-accent-primary-hover font-medium"
           >
             Sign up
           </button>
