@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, HardDrive, Database, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, HardDrive, Database, TrendingUp, AlertCircle, RefreshCw, PauseCircle, PlayCircle } from 'lucide-react';
 import { storageApi } from '../api/client';
 
 interface StorageAccount {
@@ -31,13 +31,34 @@ interface StorageDashboardProps {
 
 // Cache TTL: 30 seconds
 const CACHE_TTL = 30 * 1000;
+// Auto-refresh interval: 30 seconds
+const AUTO_REFRESH_INTERVAL = 30 * 1000;
 let statsCache: { data: StorageStats; timestamp: number } | null = null;
 
 export function StorageDashboard({ onClose }: StorageDashboardProps) {
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const isMounted = useRef(true);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-refresh interval
+  useEffect(() => {
+    if (autoRefresh) {
+      refreshIntervalRef.current = setInterval(() => {
+        fetchStats(true);
+      }, AUTO_REFRESH_INTERVAL);
+    } else if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [autoRefresh]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -96,6 +117,10 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
   }, []);
 
   const handleRefresh = () => fetchStats(true);
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(prev => !prev);
+  };
 
   const formatBytes = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -203,6 +228,20 @@ export function StorageDashboard({ onClose }: StorageDashboardProps) {
             title="Refresh"
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={toggleAutoRefresh} 
+            className={`p-1 rounded-lg transition-colors ${autoRefresh ? 'bg-green-100 text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+            title={autoRefresh ? 'Auto-refresh enabled (click to pause)' : 'Auto-refresh paused (click to resume)'}
+          >
+            {autoRefresh ? (
+              <span className="flex items-center gap-1">
+                <PlayCircle className="w-4 h-4 animate-pulse" />
+                <span className="text-xs font-medium">Live</span>
+              </span>
+            ) : (
+              <PauseCircle className="w-4 h-4" />
+            )}
           </button>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
