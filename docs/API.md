@@ -338,12 +338,18 @@ Content-Type: application/pdf
 Content-Length: 1048576
 ```
 
-**Errors**: `404` file not found, `500` download failed
+**Errors**: 
+- `404` file not found / `file_not_present` in B2
+- `401` / `403` download authorization failed / token expired
+- `400` invalid download request
+- `500` download failed
 
 ```bash
 curl -L -o document.pdf "https://api.example.com/api/files/uuid/download" \
   -H "Authorization: Bearer <token>"
 ```
+
+> **Fixed**: Previously, files without a `b2_file_id` (using fallback `downloadFileByName`) would fail with B2 400 error "required field fileNamePrefix is missing" due to malformed query string. Fixed by using correct query separator (`?` for fileName, `&` for fileId) when appending download authorization token. See [Download Bug Fix](#download-bug-fixed).
 
 ### PATCH /api/files/:id
 
@@ -657,3 +663,53 @@ Validation errors (express-validator):
 | Others | none | - |
 
 Rate limit responses include `Retry-After` header and standard headers.
+
+---
+
+## Known Fixes
+
+### Download Bug Fixed (Files without b2_file_id)
+
+**Issue**: Files without a `b2_file_id` (fallback to `downloadFileByName`) failed with B2 400 error:
+```
+"message": "required field fileNamePrefix is missing", "code": "bad_request"
+```
+
+**Root Cause**: The download authorization token was appended with `&Authorization=` for both:
+- `b2FileId` branch: URL already had `?fileId=...` → `&Authorization=` ✓ correct
+- `fileName` branch: URL had NO query string → `&Authorization=` ✗ invalid (missing `?`)
+
+**Fix**: Use correct query separator per branch:
+```javascript
+const urlWithAuth = b2FileId
+  ? `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`  // has ?fileId=
+  : `${downloadUrl}?Authorization=${encodeURIComponent(authToken)}`;  // needs ?
+```
+
+**Files Changed**:
+- `backend/src/services/b2.js` — `downloadFile()` function
+- `backend/src/routes/files.js` — `GET /api/files/:id/download`
+- `backend/src/routes/shares.js` — `GET /api/shares/:token`
+
+**Additional Improvements**:
+- Full B2 error response logging for debugging
+- Specific error handling: `404`/`file_not_present`, `401`/`403`, `400` mapped to appropriate HTTP status
+- Direct axios calls with `axiosOverride.headers.Authorization` for download auth token
+
+---
+
+### Live Storage Dashboard (Auto-refresh)
+
+The Storage Dashboard (`/api/storage/stats`) now supports automatic live updates:
+- **Auto-refresh**: Enabled by default, polls every 30 seconds
+- **Smart caching**: 30-second cache TTL prevents unnecessary API calls
+- **Pause/Resume**: User can toggle auto-refresh on/off
+- **Visual indicator**: Green "Live" badge with pulsing play icon when active
+- **Frontend**: `StorageDashboard` component (`frontend/src/components/StorageDashboard.tsx`)
+- **Backend**: Uses cached DB values (`used_bytes` column) — no live B2 API calls
+
+**Configuration**:
+```typescript
+const CACHE_TTL = 30 * 1000;           // 30-second cache TTL
+const AUTO_REFRESH_INTERVAL = 30 * 1000; // 30-second auto-refresh
+```

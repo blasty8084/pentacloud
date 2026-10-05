@@ -108,6 +108,52 @@ await api.post('/files/upload', formData, {
 
 ---
 
+## Download Bug Fix (Fixed)
+
+### Issue
+The `downloadFile()` function in `backend/src/services/b2.js` had a bug where the download authorization token was appended with `&Authorization=` for both the `b2FileId` branch (which already had `?fileId=...` in the URL) AND the `fileName` branch (which had NO query string). This created malformed URLs for the `fileName` branch:
+```
+/file/bucket/file.txt&Authorization=token   // INVALID - missing ?
+```
+
+This caused B2 to return a 400 error with message "required field fileNamePrefix is missing".
+
+### Root Cause
+The B2 download endpoints:
+- `/b2api/v2/b2_download_file_by_id?fileId=...` — already has `?fileId=`
+- `/file/{bucketName}/{fileName}` — NO query string
+
+The code was appending `&Authorization=` to both, but the second URL needs `?Authorization=`.
+
+### Fix Applied
+**File**: `backend/src/services/b2.js` (line ~739)
+
+```javascript
+// Before (broken):
+const urlWithAuth = `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`;
+
+// After (fixed):
+const urlWithAuth = b2FileId
+  ? `${downloadUrl}&Authorization=${encodeURIComponent(authToken)}`  // has ?fileId=
+  : `${downloadUrl}?Authorization=${encodeURIComponent(authToken)}`;  // needs ?
+```
+
+### Affected Endpoints
+- `GET /api/files/:id/download` (`backend/src/routes/files.js`)
+- `GET /api/shares/:token` (`backend/src/routes/shares.js`)
+
+Both routes now correctly pass the `b2_file_id` from the database to `downloadFile()`, and the download authorization token is properly appended with the correct query separator.
+
+### Additional Improvements
+- **Full B2 error response logging** for debugging
+- **Specific error handling** in routes:
+  - `404` / `file_not_present` → `404 File not found in storage`
+  - `401` / `403` → `401 Download authorization failed`
+  - `400` → `400 Invalid download request`
+- **Direct axios calls** with `axiosOverride.headers.Authorization` for download authorization token (bypassing library's ignored `authorization` parameter)
+
+---
+
 ## MIME Type Whitelist
 
 From `files.js:16-49`:

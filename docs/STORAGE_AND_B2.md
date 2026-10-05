@@ -271,19 +271,38 @@ Runs on startup via `seedB2Accounts()` in `db/seed.js`:
 
 ---
 
-## Frontend Display Guidelines
+## Storage Dashboard (Frontend)
 
-### Format Bytes Helper
+The `StorageDashboard` component (`frontend/src/components/StorageDashboard.tsx`) provides a real-time view of storage usage across all B2 accounts.
+
+### Live Auto-Refresh
+
+- **Auto-refresh**: Enabled by default, polls every 30 seconds (`AUTO_REFRESH_INTERVAL = 30000`)
+- **Smart caching**: 30-second cache TTL prevents unnecessary API calls
+- **Pause/Resume**: User can toggle auto-refresh on/off via header button
+- **Manual refresh**: Always available via refresh button
+- **Visual indicator**: Green "Live" badge with pulsing play icon when active, pause icon when paused
+
+### Component Features
+
+- **Total storage**: Used / Max / Percentage with progress bar
+- **Per-account breakdown**: Used, max, free, percentage, health status
+- **Health indicators**: Healthy (green), Degraded (yellow), Unhealthy (red)
+- **Activity feed**: Recent uploads/downloads (desktop sidebar)
+- **Admin reconile button**: Sync Storage button in Settings (admin only)
+
+### Configuration Constants
+
 ```typescript
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes === 0) return '0 B';
-  if (bytes < 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const unit = sizes[Math.min(i, sizes.length - 1)] || 'B';
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + unit;
-}
+const CACHE_TTL = 30 * 1000;           // 30-second cache TTL
+const AUTO_REFRESH_INTERVAL = 30 * 1000; // 30-second auto-refresh
+```
+
+### Configuration Constants
+
+```typescript
+const CACHE_TTL = 30 * 1000;           // 30-second cache TTL
+const AUTO_REFRESH_INTERVAL = 30 * 1000; // 30-second auto-refresh
 ```
 
 ### Health Badge Colors
