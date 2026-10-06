@@ -28,7 +28,7 @@ import {
   FolderPlus, LogOut, Menu, X, ChevronRight, ChevronLeft,
   MoreVertical, Download, Edit, Trash2, Share2, Eye, FileText,
   Image, File, Folder, Settings, Cloud, HardDrive, Share, Users,
-  BarChart2, Home, Globe, Palette
+  BarChart2, Home, Globe, Palette, Clock, Upload, Link, RefreshCw
 } from 'lucide-react';
 
 interface BackendFile {
@@ -50,8 +50,19 @@ interface Folder {
 }
 
 interface StorageStats {
-  total: { used: number; max: number; percentage: number };
-  accounts: { id: string; name: string; used: number; max: number; percentage: number }[];
+  total: { used: number; max: number; percentage: number; free?: number };
+  accounts: { 
+    id: string; 
+    name: string; 
+    used: number; 
+    max: number; 
+    free?: number; 
+    percentage: number;
+    health?: 'healthy' | 'degraded' | 'unhealthy';
+    available?: boolean;
+    bucket_name?: string;
+    bucket_endpoint?: string;
+  }[];
 }
 
 type NavItem = 'files' | 'shared' | 'storage' | 'settings';
@@ -62,61 +73,6 @@ const navItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: 'storage', label: 'Storage Usage', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
 ];
-
-function StorageMeterMini({ t }: { t: (key: string) => string }) {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await storageApi.stats();
-        const data = response.data;
-        if (data && typeof data === 'object' && 
-            data.total && typeof data.total === 'object' &&
-            Array.isArray(data.accounts)) {
-          setStats(data);
-        } else {
-          console.error('Invalid storage stats response:', data);
-          setStats({
-            total: { used: 0, max: 0, free: 0, percentage: 0 },
-            accounts: []
-          });
-        }
-      } catch (err) {
-        console.error('Failed to fetch storage stats:', err);
-        setStats({
-          total: { used: 0, max: 0, free: 0, percentage: 0 },
-          accounts: []
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
-  if (loading || !stats) return null;
-
-  const totalPercent = stats.total.percentage;
-  const getColor = (p: number) => p >= 90 ? 'bg-accent-danger' : p >= 70 ? 'bg-accent-warning' : 'bg-accent-primary';
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-text-secondary">{t('Total Storage')}</span>
-        <span className="font-medium text-text-primary">{formatBytes(stats.total.used)} / {formatBytes(stats.total.max)}</span>
-      </div>
-      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-500 ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
-      </div>
-      <div className="flex justify-between text-xs text-text-tertiary">
-        <span>{formatBytes(stats.total.used)} {t('Used')}</span>
-        <span>{formatBytes(stats.total.free)} {t('Free')}</span>
-      </div>
-    </div>
-  );
-}
 
 function SharedView({ t }: { t: (key: string) => string }) {
   return (
@@ -169,6 +125,8 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeNav, setActiveNav] = useState<NavItem>('files');
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [recentFilesError, setRecentFilesError] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
   const [previewFile, setPreviewFile] = useState<BackendFile | null>(null);
@@ -176,20 +134,22 @@ export default function Dashboard() {
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
 
-  const fetchFiles = useCallback(async (isBackgroundRefresh = false) => {
+  const fetchFiles = useCallback(async (isBackgroundRefresh = false, folderId?: string, search?: string) => {
     if (!isBackgroundRefresh) {
       setLoading(true);
     }
     try {
       const response = await filesApi.list({
-        folderId: currentFolderId || undefined,
-        search: searchQuery || undefined,
+        folderId: folderId || currentFolderId || undefined,
+        search: search || searchQuery || undefined,
       });
       const data = response.data;
       setFiles(Array.isArray(data) ? data : []);
+      setRecentFilesError(null);
     } catch (err) {
       console.error('Failed to fetch files:', err);
       setFiles([]);
+      setRecentFilesError('Failed to load recent files');
     } finally {
       setLoading(false);
     }
@@ -219,10 +179,35 @@ export default function Dashboard() {
       if (data && typeof data === 'object' && 
           data.total && typeof data.total === 'object' &&
           Array.isArray(data.accounts)) {
-        setStorageStats(data);
+        const validated = {
+          total: {
+            used: Number(data.total.used) || 0,
+            max: Number(data.total.max) || 0,
+            percentage: Number(data.total.percentage) || 0,
+            free: data.total.free !== undefined ? Number(data.total.free) : (Number(data.total.max) || 0) - (Number(data.total.used) || 0),
+          },
+          accounts: Array.isArray(data.accounts) ? data.accounts.map((acc: any) => ({
+            id: String(acc.id),
+            name: String(acc.name),
+            used: Number(acc.used) || 0,
+            max: Number(acc.max) || 0,
+            free: acc.free !== undefined ? Number(acc.free) : (Number(acc.max) || 0) - (Number(acc.used) || 0),
+            percentage: Number(acc.percentage) || 0,
+            health: acc.health,
+            available: acc.available,
+            bucket_name: acc.bucket_name,
+            bucket_endpoint: acc.bucket_endpoint,
+          })) : [],
+        };
+        setStorageStats(validated);
+        setStorageError(null);
+      } else {
+        console.error('Invalid storage stats response:', data);
+        setStorageError('Invalid storage data format');
       }
     } catch (err) {
       console.error('Failed to fetch storage stats:', err);
+      setStorageError('Failed to load storage statistics');
     }
   }, []);
 
@@ -402,6 +387,18 @@ export default function Dashboard() {
       current = parentId ? folders.find(f => f.id === parentId) : undefined;
     }
   }
+
+  const recentFiles = sortedFiles.slice(0, 5);
+  const totalFiles = files.length;
+  const totalFolders = folders.length;
+  const totalSize = files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+  const filesThisWeek = files.filter(f => (Number(f.created_at) || 0) > Date.now() - 7 * 86400000).length;
+
+  const getStorageColor = (percentage: number) => 
+    percentage >= 90 ? 'bg-accent-danger' : percentage >= 70 ? 'bg-accent-warning' : 'bg-accent-primary';
+
+  const getStorageColorText = (percentage: number) => 
+    percentage >= 90 ? 'text-accent-danger' : percentage >= 70 ? 'text-accent-warning' : 'text-accent-primary';
 
   return (
     <div className="min-h-screen bg-bg flex flex-col text-text-primary">

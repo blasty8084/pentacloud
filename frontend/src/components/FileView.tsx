@@ -15,18 +15,20 @@ import { storageApi } from '../api/client';
 import { useState, useEffect, useCallback } from 'react';
 import { StorageDashboard } from '../components/StorageDashboard';
 
-interface ActivityItem {
-  id: string;
-  type: 'upload' | 'download' | 'delete' | 'share' | 'create' | 'move';
-  fileName: string;
-  user: string;
-  timestamp: number;
-  size?: number;
-}
-
 interface StorageStats {
-  total: { used: number; max: number; percentage: number };
-  accounts: { id: string; name: string; used: number; max: number; percentage: number }[];
+  total: { used: number; max: number; percentage: number; free?: number };
+  accounts: { 
+    id: string; 
+    name: string; 
+    used: number; 
+    max: number; 
+    free?: number; 
+    percentage: number;
+    health?: 'healthy' | 'degraded' | 'unhealthy';
+    available?: boolean;
+    bucket_name?: string;
+    bucket_endpoint?: string;
+  }[];
 }
 
 interface FileViewProps {
@@ -110,32 +112,9 @@ export function FileView({
   t,
   storageStats,
 }: FileViewProps) {
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [showActivity, setShowActivity] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
-  const [previewFile, setPreviewFile] = useState<BackendFile | null>(null);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [moveModalOpen, setMoveModalOpen] = useState(false);
-
-  useEffect(() => {
-    const activities: ActivityItem[] = files
-      .slice(0, 10)
-      .map((file, index) => ({
-        id: `act-${file.id}`,
-        type: 'upload' as const,
-        fileName: file.original_name,
-        user: 'You',
-        timestamp: file.created_at,
-        size: file.size,
-      }))
-      .sort((a, b) => b.timestamp - a.timestamp);
-    setActivity(activities);
-  }, [files]);
 
   const getFileType = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return 'image';
@@ -144,17 +123,6 @@ export function FileView({
     if (mimeType?.startsWith('audio/')) return 'audio';
     if (mimeType?.startsWith('text/')) return 'text';
     return 'file';
-  };
-
-  const getFileTypeColor = (type: string) => {
-    switch (type) {
-      case 'image': return 'text-green-500 bg-green-500/10';
-      case 'pdf': return 'text-red-500 bg-red-500/10';
-      case 'video': return 'text-purple-500 bg-purple-500/10';
-      case 'audio': return 'text-orange-500 bg-orange-500/10';
-      case 'text': return 'text-blue-500 bg-blue-500/10';
-      default: return 'text-gray-500 bg-gray-500/10';
-    }
   };
 
   const filteredFiles = files.filter(file => {
@@ -184,12 +152,12 @@ export function FileView({
   });
 
   const fileTypes = [
-    { id: 'all', label: 'All Files', icon: FileText, count: files.length },
-    { id: 'image', label: 'Images', icon: Image, count: files.filter(f => f.mime_type?.startsWith('image/')).length },
-    { id: 'pdf', label: 'PDFs', icon: FileText, count: files.filter(f => f.mime_type === 'application/pdf').length },
-    { id: 'video', label: 'Videos', icon: FileText, count: files.filter(f => f.mime_type?.startsWith('video/')).length },
-    { id: 'audio', label: 'Audio', icon: FileText, count: files.filter(f => f.mime_type?.startsWith('audio/')).length },
-    { id: 'text', label: 'Documents', icon: FileText, count: files.filter(f => f.mime_type?.startsWith('text/')).length },
+    { id: 'all', label: t('All Files'), icon: FileText, count: files.length },
+    { id: 'image', label: t('Images'), icon: Image, count: files.filter(f => f.mime_type?.startsWith('image/')).length },
+    { id: 'pdf', label: t('PDFs'), icon: FileText, count: files.filter(f => f.mime_type === 'application/pdf').length },
+    { id: 'video', label: t('Videos'), icon: FileText, count: files.filter(f => f.mime_type?.startsWith('video/')).length },
+    { id: 'audio', label: t('Audio'), icon: FileText, count: files.filter(f => f.mime_type?.startsWith('audio/')).length },
+    { id: 'text', label: t('Documents'), icon: FileText, count: files.filter(f => f.mime_type?.startsWith('text/')).length },
   ];
 
   return (
@@ -328,7 +296,7 @@ export function FileView({
 
               {/* Actions */}
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedFile(null); setRenameModalOpen(true); }}>
+                <Button variant="ghost" size="sm" onClick={() => alert('New folder')}>
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">New Folder</span>
                 </Button>
@@ -540,58 +508,8 @@ export function FileView({
           </div>
         </div>
 
-        {/* Activity Feed */}
-        <div className="hidden lg:block lg:fixed lg:right-4 lg:top-[140px] lg:w-80 lg:z-20">
-          <div className="card animate-slide-in-right">
-            <div className="flex items-center justify-between p-4 border-b border-surface-border">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-purple-500" />
-                <h3 className="font-semibold text-text-primary">Recent Activity</h3>
-              </div>
-              <button className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="Toggle activity">
-                <ChevronDown className={`w-4 h-4 transition-transform ${showActivity ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-            <div className={`${showActivity ? 'block' : 'hidden'} max-h-96 overflow-y-auto`}>
-              <div className="p-4 space-y-3">
-                {activity.length === 0 ? (
-                  <div className="text-center py-8 text-text-tertiary">
-                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No recent activity</p>
-                  </div>
-                ) : (
-                  <>
-                    {activity.map(item => (
-                      <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-surface-secondary transition-colors">
-                        <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                          <Activity className="w-4 h-4 text-purple-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{item.fileName}</p>
-                          <p className="text-xs text-text-tertiary flex items-center gap-1 mt-0.5">
-                            <span>•</span>
-                            <span>{item.user}</span>
-                            <span>•</span>
-                            <span>{formatDate(item.timestamp)}</span>
-                            {item.size && <span className="flex items-center gap-1"><span>•</span><span>{formatBytes(item.size)}</span></span>}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="p-3 border-t border-surface-border text-center">
-              <button className="text-sm text-accent-primary hover:text-accent-primary-hover font-medium">
-                View all activity
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Main Content */}
-        <div className="flex-1 overflow-auto lg:pr-84">
+        <div className="flex-1 overflow-auto">
           <div className="p-4 lg:p-6">
             {loading ? (
               <div className="flex items-center justify-center h-64">
