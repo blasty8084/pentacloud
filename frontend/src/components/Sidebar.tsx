@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Folder, ChevronRight, Plus, FolderPlus, 
-  Home, Share, BarChart2, Settings,
+  Home, Share2, Settings, Database, BarChart2,
   ChevronLeft, ChevronDown,
   Globe
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { formatBytes } from '../utils/format';
 import { Button } from './Button';
+import { navigationConfig, useNavigationState, type NavItemId } from '../navigation/NavigationConfig';
 
 interface FolderItem {
   id: string;
@@ -16,8 +18,6 @@ interface FolderItem {
   children?: FolderItem[];
 }
 
-type NavItem = 'files' | 'shared' | 'storage' | 'settings';
-
 interface SidebarProps {
   folders: FolderItem[];
   currentFolderId: string | null;
@@ -25,11 +25,22 @@ interface SidebarProps {
   onCreate: (name: string, parentId?: string) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  activeNav: 'files' | 'shared' | 'storage' | 'settings';
-  setActiveNav: (nav: 'files' | 'shared' | 'storage' | 'settings') => void;
+  activeNav: NavItemId | null;
+  setActiveNav: (nav: NavItemId) => void;
   storageStats: {
-    total: { used: number; max: number; percentage: number };
-    accounts: { id: string; name: string; used: number; max: number; percentage: number }[];
+    total: { used: number; max: number; percentage: number; free?: number };
+    accounts: { 
+      id: string; 
+      name: string; 
+      used: number; 
+      max: number; 
+      free?: number; 
+      percentage: number;
+      health?: 'healthy' | 'degraded' | 'unhealthy';
+      available?: boolean;
+      bucket_name?: string;
+      bucket_endpoint?: string;
+    }[];
   } | null;
 }
 
@@ -44,28 +55,32 @@ export function Sidebar({
   setActiveNav,
   storageStats,
 }: SidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { themeMode, setThemeMode, resolvedTheme } = useTheme();
+  const { isActive, navigateTo } = useNavigationState(location.pathname, activeNav, setActiveNav);
+  
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [creatingFolderId, setCreatingFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [showStorageDetails, setShowStorageDetails] = useState(false);
 
-  const toggleExpand = (folderId: string) => {
+  const toggleExpand = useCallback((folderId: string) => {
     setExpandedFolders(prev => {
       const next = new Set(prev);
       if (next.has(folderId)) next.delete(folderId);
       else next.add(folderId);
       return next;
     });
-  };
+  }, []);
 
-  const handleCreateFolder = (parentId?: string) => {
+  const handleCreateFolder = useCallback((parentId?: string) => {
     if (newFolderName.trim()) {
       onCreate(newFolderName.trim(), parentId);
       setNewFolderName('');
       setCreatingFolderId(null);
     }
-  };
+  }, [newFolderName, onCreate]);
 
   function FolderTreeItem({
     folder,
@@ -174,12 +189,7 @@ export function Sidebar({
     );
   }
 
-  const navItems = [
-    { id: 'files' as const, label: 'My Files', icon: <Home className="w-5 h-5" />, count: null },
-    { id: 'shared' as const, label: 'Shared', icon: <Share className="w-5 h-5" />, count: null },
-    { id: 'storage' as const, label: 'Storage', icon: <BarChart2 className="w-5 h-5" />, count: null },
-    { id: 'settings' as const, label: 'Settings', icon: <Settings className="w-5 h-5" />, count: null },
-  ];
+  const availableNavItems = navigationConfig.filter(item => item.availability === 'available');
 
   return (
     <aside
@@ -213,20 +223,25 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1" aria-label="Main navigation">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => setActiveNav(item.id)}
-            className={`group flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-              activeNav === item.id
-                ? 'bg-accent-primary-light text-accent-primary font-semibold'
-                : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
-            }`}
-          >
-            <span className="flex-shrink-0">{item.icon}</span>
-            {!sidebarCollapsed && <span className="truncate flex-1">{item.label}</span>}
-          </button>
-        ))}
+        {availableNavItems.map(item => {
+          const active = isActive(item.id);
+          return (
+            <button
+              key={item.id}
+              onClick={() => navigateTo(item.id)}
+              className={`group flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                active
+                  ? 'bg-accent-primary-light text-accent-primary font-semibold'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
+              }`}
+              aria-current={active ? 'page' : undefined}
+              aria-label={item.label}
+            >
+              <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>
+              {!sidebarCollapsed && <span className="truncate flex-1">{item.label}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       {/* Folders Section */}
@@ -246,6 +261,7 @@ export function Sidebar({
                 ? 'bg-accent-primary-light text-accent-primary font-semibold'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
             }`}
+            aria-current={currentFolderId === null ? 'page' : undefined}
           >
             <Folder className="w-4 h-4 text-text-tertiary group-active:text-accent-primary" />
             <span className="truncate flex-1">All Files</span>
@@ -286,6 +302,7 @@ export function Sidebar({
               onClick={() => setShowStorageDetails(!showStorageDetails)}
               className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors"
               aria-label={showStorageDetails ? 'Hide details' : 'Show details'}
+              aria-expanded={showStorageDetails}
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${showStorageDetails ? 'rotate-180' : ''}`} />
             </button>
@@ -357,10 +374,11 @@ export function Sidebar({
                     ? 'bg-accent-primary-light text-accent-primary'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
                 }`}
+                aria-pressed={themeMode === mode}
               >
-                {mode === 'light' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-amber-400" /> Light</span>}
-                {mode === 'dark' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-slate-800" /> Dark</span>}
-                {mode === 'system' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-gradient-to-r from-amber-400 to-slate-800" /> Auto</span>}
+                {mode === 'light' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-amber-400" aria-hidden="true" /> Light</span>}
+                {mode === 'dark' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-slate-800" aria-hidden="true" /> Dark</span>}
+                {mode === 'system' && <span className="flex items-center justify-center gap-1"><span className="w-4 h-4 rounded-full bg-gradient-to-r from-amber-400 to-slate-800" aria-hidden="true" /> Auto</span>}
               </button>
             ))}
           </div>
