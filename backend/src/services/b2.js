@@ -799,6 +799,94 @@ async getAccountWithMostSpace() {
       }
     });
   }
+  
+  // Import missing files from B2 buckets that don't have DB records
+  async importMissingFiles(adminUserId) {
+    const results = { imported: 0, skipped: 0, accounts: [] };
+    
+    for (const account of this.accounts) {
+      const client = this.clients.get(account.id);
+      if (!client) {
+        console.log(`[B2 IMPORT] Skipping account ${account.id} - not initialized`);
+        results.accounts.push({ id: account.id, name: account.name, imported: 0, skipped: 0, error: 'Not initialized' });
+        continue;
+      }
+      
+      const { b2, account: acct } = client;
+      const bucketId = acct.bucket_id;
+      if (!bucketId) {
+        console.log(`[B2 IMPORT] Skipping account ${account.id} - no bucket ID`);
+        results.accounts.push({ id: account.id, name: account.name, imported: 0, skipped: 0, error: 'No bucket ID' });
+        continue;
+      }
+      
+      console.log(`[B2 IMPORT] Starting import for account "${acct.name}" (${account.id})`);
+      let accountImported = 0;
+      let accountSkipped = 0;
+      
+      try {
+        let startFileName = null;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const listResponse = await b2.listFileNames({
+            bucketId,
+            startFileName,
+            maxFileCount: 1000,
+          });
+          
+          const files = listResponse.data.files || [];
+          hasMore = listResponse.data.nextFileName !== null;
+          startFileName = listResponse.data.nextFileName;
+          
+          for (const b2File of files) {
+            // Skip hidden/folder-marker entries
+            if (b2File.fileName.endsWith('/') || b2File.fileName.startsWith('.bzEmpty')) {
+              continue;
+            }
+            
+            // Check if file already exists in DB (by b2_file_id OR b2_file_name)
+            const existingResult = await query(
+              'SELECT id FROM files WHERE b2_file_id = $1 OR b2_file_name = $2',
+              [b2File.fileId, b2File.fileName]
+            );
+            
+            if (existingResult.rows.length > 0) {
+              accountSkipped++;
+              continue;
+            }
+            
+            // Insert new file record
+            const fileId = uuidv4();
+            const mimeType = b2File.contentType || 'application/octet-stream';
+            const size = b2File.contentLength || 0;
+            
+            await query(
+              `INSERT INTO files (id, name, original_name, mime_type, size, folder_id, user_id, b2_account_id, b2_file_id, b2_file_name)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              [fileId, b2File.fileName, b2File.fileName, b2File.contentType || 'application/octet-stream', size, null, adminUserId, account.id, b2File.fileId, b2File.fileName]
+            );
+            
+            accountImported++;
+          }
+        }
+        
+        // Update used_bytes after import
+        await this.reconcileUsedBytes();
+        
+        console.log(`[B2 IMPORT] Account "${acct.name}" (${account.id}): imported ${accountImported}, skipped ${accountSkipped}`);
+        results.accounts.push({ id: account.id, name: acct.name, imported: accountImported, skipped: accountSkipped });
+        results.imported += accountImported;
+        results.skipped += accountSkipped;
+        
+      } catch (err) {
+        console.error(`[B2 IMPORT] Failed for account "${acct.name}" (${account.id}):`, this.sanitizeError(err));
+        results.accounts.push({ id: account.id, name: acct.name, imported: accountImported, skipped: accountSkipped, error: err.message });
+      }
+    }
+    
+    return results;
+  }
 }
 
 export const b2Service = new B2Service();
