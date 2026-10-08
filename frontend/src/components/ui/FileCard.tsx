@@ -122,135 +122,12 @@ export function FileCard({
               <Share2 className="w-4 h-4" />
               <span>{t('Share')}</span>
             </MenuItem>
-            <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
-              <Trash2 className="w-4 h-4" />
-              <span>{t('Delete')}</span>
-            </MenuItem>
-          </Menu>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      key={file.id}
-      className={`group relative card-hover cursor-pointer ${
-        selected
-          ? 'bg-accent-primary-light/50 border-2 border-accent-primary'
-          : 'bg-surface border border-surface-border hover:border-surface-border-hover hover:shadow-lg hover:-translate-y-1'
-      } transition-all duration-300 rounded-2xl p-4`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      aria-selected={selected}
-    >
-      {/* File Preview Area */}
-      <div className="aspect-square bg-surface-secondary rounded-xl flex items-center justify-center mb-4 relative overflow-hidden">
-        <FileIcon mimeType={file.mime_type} fileName={file.name} className="w-12 h-12 text-text-tertiary" />
-        
-        {/* Image thumbnail preview */}
-        {isImage && (
-          <img
-            src={`${(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000/api' : ''))}/files/${file.id}/download}`}
-            alt={file.name}
-            className="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            loading="lazy"
-          />
-        )}
-        
-        {/* File type badge */}
-        <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${typeColor}`}>
-          {file.mime_type?.startsWith('image/') ? 'IMG' : 
-           file.mime_type === 'application/pdf' ? 'PDF' :
-           file.mime_type?.startsWith('video/') ? 'VID' :
-           file.mime_type?.startsWith('audio/') ? 'AUD' :
-           file.mime_type?.startsWith('text/') ? 'TXT' : 'FILE'}
-        </div>
-      </div>
-
-      {/* File Info */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-text-primary truncate" title={file.name}>
-          {file.name}
-        </p>
-        
-        <div className="flex items-center justify-between text-xs text-text-tertiary">
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary/50" />
-            {file.mime_type}
-          </span>
-          <span>{formatBytes(file.size)}</span>
-        </div>
-
-        <div className="pt-3 border-t border-surface-border flex items-center justify-between">
-          {formatDate && (
-            <span className="text-xs text-text-tertiary">{formatDate(file.created_at)}</span>
-          )}
-          
-          {showActions && (
-            <Menu>
-              <MenuTrigger asChild>
-                <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors opacity-0 group-hover:opacity-100 transition-opacity" aria-label="More options">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </MenuTrigger>
-              <MenuItem onClick={() => onPreview?.(file)}>
-                <Eye className="w-4 h-4" />
-                <span>{t('Preview')}</span>
-              </MenuItem>
-              <MenuItem onClick={() => onDownload?.(file)}>
-                <Download className="w-4 h-4" />
-                <span>{t('Download')}</span>
-              </MenuItem>
-              <MenuItem onClick={() => onRename?.(file)}>
-                <Edit className="w-4 h-4" />
-                <span>{t('Rename')}</span>
-              </MenuItem>
-              <MenuItem onClick={() => onMove?.(file)}>
-                <ChevronRight className="w-4 h-4" />
-                <span>{t('Move')}</span>
-              </MenuItem>
-              <MenuItem onClick={() => onShare?.(file)}>
-                <Share2 className="w-4 h-4" />
-                <span>{t('Share')}</span>
-              </MenuItem>
-              {onStar && (
-                <MenuItem onClick={() => onStar?.(file)}>
-                  <Star className="w-4 h-4" />
-                  <span>{file.starred ? t('Unstar') : t('Star')}</span>
-                </MenuItem>
-              )}
-              <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
-                <Trash2 className="w-4 h-4" />
-                <span>{t('Delete')}</span>
-              </MenuItem>
-            </Menu>
-          )}
-        </div>
-      </div>
-    </div>
+<MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
+        <Trash2 className="w-4 h-4" />
+        <span>{t('Delete')}</span>
+      </MenuItem>
+    </Menu>
   );
-}
-
-export function FileRow({
-  file,
-  onPreview,
-  onDownload,
-  onRename,
-  onMove,
-  onDelete,
-  onShare,
-  onStar,
-  formatSize = formatBytes,
-  formatDate,
-  t = (key: string) => key,
-  showActions = true,
-  selected,
-  onSelect,
-}: FileCardProps) {
-  const typeColor = getFileTypeColor(file.mime_type, file.name);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -259,49 +136,44 @@ export function FileRow({
     }
   };
 
-const renderActions = () => (
-    showActions && (
-      <>
-        <Menu>
-          <MenuTrigger asChild>
-            <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="More options">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </MenuTrigger>
-          <MenuItem onClick={() => onPreview?.(file)}>
-            <Eye className="w-4 h-4" />
-            <span>{t('Preview')}</span>
-          </MenuItem>
-          <MenuItem onClick={() => onDownload?.(file)}>
-            <Download className="w-4 h-4" />
-            <span>{t('Download')}</span>
-          </MenuItem>
-          <MenuItem onClick={() => onRename?.(file)}>
-            <Edit className="w-4 h-4" />
-            <span>{t('Rename')}</span>
-          </MenuItem>
-          <MenuItem onClick={() => onMove?.(file)}>
-            <ChevronRight className="w-4 h-4" />
-            <span>{t('Move')}</span>
-          </MenuItem>
-          <MenuItem onClick={() => onShare?.(file)}>
-            <Share2 className="w-4 h-4" />
-            <span>{t('Share')}</span>
-          </MenuItem>
-          {onStar && (
-            <MenuItem onClick={() => onStar?.(file)}>
-              <Star className="w-4 h-4" />
-              <span>{file.starred ? t('Unstar') : t('Star')}</span>
-            </MenuItem>
-          )}
-          <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
-            <Trash2 className="w-4 h-4" />
-            <span>{t('Delete')}</span>
-          </MenuItem>
-        </Menu>
-      </>
-    </>
-  );
+  const actionsMenu = (
+    <Menu>
+      <MenuTrigger asChild>
+        <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="More options">
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      </MenuTrigger>
+      <MenuItem onClick={() => onPreview?.(file)}>
+        <Eye className="w-4 h-4" />
+        <span>{t('Preview')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onDownload?.(file)}>
+        <Download className="w-4 h-4" />
+        <span>{t('Download')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onRename?.(file)}>
+        <Edit className="w-4 h-4" />
+        <span>{t('Rename')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onMove?.(file)}>
+        <ChevronRight className="w-4 h-4" />
+        <span>{t('Move')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onShare?.(file)}>
+        <Share2 className="w-4 h-4" />
+        <span>{t('Share')}</span>
+      </MenuItem>
+      {onStar && (
+        <MenuItem onClick={() => onStar?.(file)}>
+          <Star className="w-4 h-4" />
+          <span>{file.starred ? t('Unstar') : t('Star')}</span>
+        </MenuItem>
+      )}
+      <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
+        <Trash2 className="w-4 h-4" />
+        <span>{t('Delete')}</span>
+      </MenuItem>
+    </Menu>
 
   return (
     <tr 
@@ -328,7 +200,7 @@ const renderActions = () => (
         <td className="px-4 py-3 text-sm text-text-secondary">{formatBytes(file.size)}</td>
         <td className="px-4 py-3 text-sm text-text-tertiary">{formatDate ? formatDate(file.created_at) : ''}</td>
         <td className="px-4 py-3">
-          {renderActions()}
+          {showActions ? actionsMenu : null}
         </td>
       </tr>
     );
