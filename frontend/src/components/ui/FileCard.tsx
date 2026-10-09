@@ -122,7 +122,7 @@ export function FileCard({
               <Share2 className="w-4 h-4" />
               <span>{t('Share')}</span>
             </MenuItem>
-<MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
+<MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">>
         <Trash2 className="w-4 h-4" />
         <span>{t('Delete')}</span>
       </MenuItem>
