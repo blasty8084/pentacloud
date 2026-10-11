@@ -298,8 +298,10 @@ export class B2Service {
     }
     
     // Request download authorization valid for 1 hour (3600 seconds)
+    // fileNamePrefix: '' means all files in the bucket are covered
     const response = await b2.getDownloadAuthorization({
       bucketId,
+      fileNamePrefix: '',
       validDurationInSeconds: 3600,
     });
     
@@ -836,7 +838,7 @@ async getAccountWithMostSpace() {
           });
           
           const files = listResponse.data.files || [];
-          hasMore = listResponse.data.nextFileName !== null;
+          hasMore = listResponse.data.nextFileName != null;
           startFileName = listResponse.data.nextFileName;
           
           for (const b2File of files) {
@@ -845,10 +847,10 @@ async getAccountWithMostSpace() {
               continue;
             }
             
-            // Check if file already exists in DB (by b2_file_id OR b2_file_name)
+            // Check if file already exists in DB (by b2_file_id OR b2_file_name scoped to same account)
             const existingResult = await query(
-              'SELECT id FROM files WHERE b2_file_id = $1 OR b2_file_name = $2',
-              [b2File.fileId, b2File.fileName]
+              'SELECT id FROM files WHERE b2_file_id = $1 OR (b2_account_id = $3 AND b2_file_name = $2)',
+              [b2File.fileId, b2File.fileName, account.id]
             );
             
             if (existingResult.rows.length > 0) {
@@ -871,9 +873,6 @@ async getAccountWithMostSpace() {
           }
         }
         
-        // Update used_bytes after import
-        await this.reconcileUsedBytes();
-        
         console.log(`[B2 IMPORT] Account "${acct.name}" (${account.id}): imported ${accountImported}, skipped ${accountSkipped}`);
         results.accounts.push({ id: account.id, name: acct.name, imported: accountImported, skipped: accountSkipped });
         results.imported += accountImported;
@@ -884,6 +883,9 @@ async getAccountWithMostSpace() {
         results.accounts.push({ id: account.id, name: acct.name, imported: accountImported, skipped: accountSkipped, error: err.message });
       }
     }
+    
+    // Update used_bytes once after all accounts processed
+    await this.reconcileUsedBytes();
     
     return results;
   }

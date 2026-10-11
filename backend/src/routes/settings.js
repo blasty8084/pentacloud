@@ -75,8 +75,13 @@ router.post('/b2-accounts/import', async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
-  const result = await b2Service.importMissingFiles(req.user.id);
-  res.json({ success: true, ...result });
+  try {
+    const result = await b2Service.importMissingFiles(req.user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[B2 IMPORT] Route error:', err);
+    res.status(500).json({ error: 'Import failed' });
+  }
 });
 
 export default router;
