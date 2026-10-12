@@ -306,48 +306,45 @@ export function FileRow({
     }
   };
 
-  const renderActions = () => {
-    if (!showActions) return null;
-    return (
-      <Menu>
-        <MenuTrigger asChild>
-          <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="More options">
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </MenuTrigger>
-        <MenuItem onClick={() => onPreview?.(file)}>
-          <Eye className="w-4 h-4" />
-          <span>{t('Preview')}</span>
+  const actionsMenu = (
+    <Menu>
+      <MenuTrigger asChild>
+        <button className="p-2 rounded-xl text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-colors" aria-label="More options">
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      </MenuTrigger>
+      <MenuItem onClick={() => onPreview?.(file)}>
+        <Eye className="w-4 h-4" />
+        <span>{t('Preview')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onDownload?.(file)}>
+        <Download className="w-4 h-4" />
+        <span>{t('Download')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onRename?.(file)}>
+        <Edit className="w-4 h-4" />
+        <span>{t('Rename')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onMove?.(file)}>
+        <ChevronRight className="w-4 h-4" />
+        <span>{t('Move')}</span>
+      </MenuItem>
+      <MenuItem onClick={() => onShare?.(file)}>
+        <Share2 className="w-4 h-4" />
+        <span>{t('Share')}</span>
+      </MenuItem>
+      {onStar && (
+        <MenuItem onClick={() => onStar?.(file)}>
+          <Star className="w-4 h-4" />
+          <span>{file.starred ? t('Unstar') : t('Star')}</span>
         </MenuItem>
-        <MenuItem onClick={() => onDownload?.(file)}>
-          <Download className="w-4 h-4" />
-          <span>{t('Download')}</span>
-        </MenuItem>
-        <MenuItem onClick={() => onRename?.(file)}>
-          <Edit className="w-4 h-4" />
-          <span>{t('Rename')}</span>
-        </MenuItem>
-        <MenuItem onClick={() => onMove?.(file)}>
-          <ChevronRight className="w-4 h-4" />
-          <span>{t('Move')}</span>
-        </MenuItem>
-        <MenuItem onClick={() => onShare?.(file)}>
-          <Share2 className="w-4 h-4" />
-          <span>{t('Share')}</span>
-        </MenuItem>
-        {onStar && (
-          <MenuItem onClick={() => onStar?.(file)}>
-            <Star className="w-4 h-4" />
-            <span>{file.starred ? t('Unstar') : t('Star')}</span>
-          </MenuItem>
-        )}
-        <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
-          <Trash2 className="w-4 h-4" />
-          <span>{t('Delete')}</span>
-        </MenuItem>
-      </Menu>
-    );
-  };
+      )}
+      <MenuItem onClick={() => onDelete?.(file)} className="text-accent-danger">
+        <Trash2 className="w-4 h-4" />
+        <span>{t('Delete')}</span>
+      </MenuItem>
+    </Menu>
+  );
 
   return (
     <tr 
