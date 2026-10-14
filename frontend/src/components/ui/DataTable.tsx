@@ -162,7 +162,7 @@ export function DataTable<T>({
 
   const handleSort = (key: string) => {
     if (!onSort) return;
-    const newOrder = sortConfig.key === key && sortConfig.order === 'asc' ? 'desc' : 'asc';
+    const newOrder = sortConfig?.key === key && sortConfig?.order === 'asc' ? 'desc' : 'asc';
     setSortConfig({ key, order: newOrder });
     onSort(key);
   };
@@ -206,8 +206,8 @@ export function DataTable<T>({
   const sortedColumns = useMemo(() => 
     columns.map(col => ({
       ...col,
-      isSorted: sortConfig.key === col.key && col.sortable,
-      sortOrder: sortConfig.key === col.key && col.sortable ? sortConfig.order : undefined,
+      isSorted: sortConfig?.key === col.key && col.sortable,
+      sortOrder: sortConfig?.key === col.key && col.sortable ? sortConfig.order : undefined,
     }))
   , [columns, sortConfig]);
 
@@ -247,7 +247,7 @@ export function DataTable<T>({
                   <div className="flex items-center gap-2">
                     <span>{col.header}</span>
                     {col.sortable && (
-                      <SortIcon order={sortConfig.key === col.key ? sortConfig.order : 'asc'} />
+                      <SortIcon order={sortConfig?.key === col.key ? sortConfig.order : 'asc'} />
                     )}
                   </div>
                 </th>
@@ -287,7 +287,7 @@ export function DataTable<T>({
                 >
                   <div className="flex items-center gap-2">
                     <span>{col.header}</span>
-                    {col.sortable && <SortIcon order={sortConfig.key === col.key ? sortConfig.order : 'asc'} />}
+{col.sortable && <SortIcon order={sortConfig?.key === col.key ? sortConfig.order : 'asc'} />}
                   </div>
                 </th>
               ))}
@@ -334,7 +334,7 @@ export function DataTable<T>({
               >
                 <div className="flex items-center gap-2">
                   <span>{col.header}</span>
-                  {col.sortable && <SortIcon order={sortConfig.key === col.key ? sortConfig.order : 'asc'} />}
+                  {col.sortable && <SortIcon order={sortConfig?.key === col.key ? sortConfig.order : 'asc'} />}
                 </div>
               </th>
             ))}

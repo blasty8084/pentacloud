@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Button } from '../Button';
 
 interface Toast {
   id: string;

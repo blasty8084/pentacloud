@@ -65,14 +65,14 @@ export function Dialog({
       
       const handleKeyDownWrapper = (e: KeyboardEvent) => handleKeyDown(e);
       
-      document.addEventListener('keydown', handleKeyDownWrapper);
+      document.addEventListener('keydown', handleKeyDownWrapper as unknown as EventListener);
       
       setTimeout(() => {
         dialogRef.current?.focus();
       }, 0);
       
       return () => {
-        document.removeEventListener('keydown', handleKeyDownWrapper);
+        document.removeEventListener('keydown', handleKeyDownWrapper as unknown as EventListener);
         document.body.style.overflow = '';
         previousActiveElement.current?.focus();
       };

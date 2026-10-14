@@ -1,4 +1,4 @@
-import type { ReactNode, ReactElement, MouseEvent, KeyboardEvent } from 'react';
+import React, { type ReactNode, type ReactElement, type MouseEvent, type KeyboardEvent } from 'react';
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
@@ -60,13 +60,13 @@ export function Menu({ children }: MenuProps) {
     const handleKeyDownWrapper = (event: KeyboardEvent) => handleKeyDown(event);
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutsideWrapper);
-      document.addEventListener('keydown', handleKeyDownWrapper);
+      document.addEventListener('mousedown', handleClickOutsideWrapper as unknown as EventListener);
+      document.addEventListener('keydown', handleKeyDownWrapper as unknown as EventListener);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutsideWrapper);
-      document.removeEventListener('keydown', handleKeyDownWrapper);
+      document.removeEventListener('mousedown', handleClickOutsideWrapper as unknown as EventListener);
+      document.removeEventListener('keydown', handleKeyDownWrapper as unknown as EventListener);
     };
   }, [isOpen, close]);
 
@@ -190,10 +190,6 @@ export function MenuContent({ children, className = '', align = 'end', offset = 
       style={{ [align]: 0 }}
     >
       <div className="py-1">{children}</div>
-    </div>,
-    document.body
-  );
-}
     </div>,
     document.body
   );
