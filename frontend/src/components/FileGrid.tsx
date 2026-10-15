@@ -4,27 +4,30 @@ import { Menu, MenuItem, MenuTrigger } from './Menu';
 import { formatBytes } from '../utils/format';
 import { FileIcon, getFileTypeColor } from './FileIcon';
 
-interface File {
+interface BackendFile {
   id: string;
   name: string;
   original_name: string;
-  mime_type: string;
+  mime_type: string | null;
   size: number;
   folder_id: string | null;
   b2_account_id: string;
+  b2_file_id: string;
+  b2_file_name: string;
+  user_id: string;
   created_at: number;
+  updated_at: number;
 }
 
 interface FileGridProps {
-  files: File[];
+  files: BackendFile[];
   viewMode: 'grid' | 'list';
-  onDownload: (file: File) => void;
-  onPreview: (file: File) => void;
-  onRename: (file: File) => void;
-  onMove: (file: File) => void;
+  onDownload: (file: BackendFile) => void;
+  onPreview: (file: BackendFile) => void;
+  onRename: (file: BackendFile) => void;
+  onMove: (file: BackendFile) => void;
   onDelete: (id: string, type: 'file' | 'folder') => void;
-  onShare: (file: File) => void;
-  getFileIcon: (mimeType: string) => React.ReactNode;
+  onShare: (file: BackendFile) => void;
   formatSize: (bytes: number) => string;
   formatDate: (timestamp: number) => string;
   t: (key: string) => string;
@@ -44,7 +47,7 @@ export function FileGrid({
   t,
 }: FileGridProps) {
 
-  const renderFileCard = (file: File) => {
+  const renderFileCard = (file: BackendFile) => {
     const typeColor = getFileTypeColor(file.mime_type, file.name);
     
     return (
@@ -89,7 +92,7 @@ export function FileGrid({
           <div className="flex items-center justify-between text-xs text-text-tertiary">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary/50" />
-              {file.mime_type}
+              {file.mime_type ?? 'unknown'}
             </span>
             <span>{formatSize(file.size)}</span>
           </div>
