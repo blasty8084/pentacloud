@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 
 interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'text' | 'title' | 'avatar' | 'card' | 'circle' | 'rect';
+  variant?: 'text' | 'title' | 'avatar' | 'card' | 'circle' | 'rect' | 'stat' | 'progress';
   width?: string | number;
   height?: string | number;
 }
@@ -14,6 +14,8 @@ export function Skeleton({ className = '', variant = 'rect', width, height, ...p
     card: 'min-h-[200px] rounded-xl',
     circle: 'rounded-full',
     rect: 'rounded-md',
+    stat: 'h-6 w-full',
+    progress: 'h-1.5 w-full',
   };
 
   const baseStyles = 'skeleton';
@@ -66,5 +68,57 @@ export function TableRowSkeleton() {
       <td className="px-4 py-3"><Skeleton variant="text" style={{ width: '60%' }} /></td>
       <td className="px-4 py-3"><Skeleton variant="text" style={{ width: '50%' }} /></td>
     </tr>
+  );
+}
+
+export function StatCardSkeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div className={`card card-hover p-5 animate-shimmer animate-slide-up ${className}`} style={style}>
+      <div className="flex items-start justify-between">
+        <div>
+          <Skeleton variant="title" style={{ width: '80%' }} />
+          <Skeleton variant="stat" style={{ width: '60%', marginTop: '8px' }} />
+          <Skeleton variant="text" style={{ width: '40%', marginTop: '4px' }} />
+        </div>
+        <Skeleton variant="avatar" className="w-14 h-14" />
+      </div>
+    </div>
+  );
+}
+
+export function StorageMeterSkeleton() {
+  return (
+    <div className="space-y-3 animate-shimmer">
+      <div className="flex items-center justify-between">
+        <Skeleton variant="text" style={{ width: '30%' }} />
+        <Skeleton variant="stat" style={{ width: '40%' }} />
+      </div>
+      <Skeleton variant="progress" />
+      <div className="flex justify-between">
+        <Skeleton variant="text" style={{ width: '30%' }} />
+        <Skeleton variant="text" style={{ width: '30%' }} />
+      </div>
+    </div>
+  );
+}
+
+export function DashboardStatsSkeleton() {
+  return (
+    <div className="hidden lg:grid lg:grid-cols-4 gap-4 p-4">
+      {[0, 1, 2, 3].map(i => (
+        <StatCardSkeleton key={i} style={{ animationDelay: `${i * 50}ms` }} />
+      ))}
+    </div>
+  );
+}
+
+export function MobileStatsSkeleton() {
+  return (
+    <div className="p-4 lg:hidden">
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+    </div>
   );
 }

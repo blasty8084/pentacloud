@@ -1,8 +1,9 @@
 import { 
   Folder, ChevronRight, ChevronLeft, Upload, Search, 
   Grid, List, MoreHorizontal, Download, Upload as UploadIcon,
-  FileText, Image, File, Clock, TrendingUp, Activity,
-  Plus, Settings, Filter, ChevronDown, X, Share
+  FileText, Image, File, Clock, TrendingUp,
+  Plus, Settings, Filter, ChevronDown, X, Share,
+  AlertCircle, RefreshCw, Inbox, Activity
 } from 'lucide-react';
 import { UploadZone } from '../components/UploadZone';
 import { FileGrid } from '../components/FileGrid';
@@ -14,6 +15,17 @@ import { Button } from '../components/Button';
 import { storageApi } from '../api/client';
 import { useState, useEffect, useCallback } from 'react';
 import { StorageDashboard } from '../components/StorageDashboard';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { 
+  Skeleton, 
+  FileCardSkeleton, 
+  FileRowSkeleton, 
+  StatCardSkeleton,
+  StorageMeterSkeleton,
+  DashboardStatsSkeleton,
+  MobileStatsSkeleton
+} from '../components/Skeleton';
 
 interface StorageStats {
   total: { used: number; max: number; percentage: number; free?: number };
@@ -81,6 +93,22 @@ interface Folder {
   children?: Folder[];
 }
 
+interface StorageStats {
+  total: { used: number; max: number; percentage: number; free?: number };
+  accounts: { 
+    id: string; 
+    name: string; 
+    used: number; 
+    max: number; 
+    free?: number; 
+    percentage: number;
+    health?: 'healthy' | 'degraded' | 'unhealthy';
+    available?: boolean;
+    bucket_name?: string;
+    bucket_endpoint?: string;
+  }[];
+}
+
 export function FileView({
   files,
   folders,
@@ -115,6 +143,11 @@ export function FileView({
   const [filterType, setFilterType] = useState<string>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [isFirstUse, setIsFirstUse] = useState(false);
 
   const getFileType = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return 'image';
@@ -159,6 +192,150 @@ export function FileView({
     { id: 'audio', label: t('Audio'), icon: FileText, count: files.filter(f => f.mime_type?.startsWith('audio/')).length },
     { id: 'text', label: t('Documents'), icon: FileText, count: files.filter(f => f.mime_type?.startsWith('text/')).length },
   ];
+
+  // Check for first use - no files and no error
+  useEffect(() => {
+    if (!loading && !filesError && files.length === 0 && !storageError) {
+      // Check if this is truly first use (no files ever uploaded)
+      // We can determine this by checking if storage is also empty
+      const isStorageEmpty = storageStats && storageStats.total.used === 0;
+      if (isStorageEmpty) {
+        setIsFirstUse(true);
+      }
+    }
+  }, [loading, files, filesError, storageStats, storageError]);
+
+  const retryFiles = useCallback(() => {
+    setFilesLoading(true);
+    setFilesError(null);
+    // The parent component's fetchFiles will be called via the loading prop
+    // We just signal that we want to retry
+  }, []);
+
+  const retryStorage = useCallback(() => {
+    setStorageLoading(true);
+    setStorageError(null);
+  }, []);
+
+  // Render content based on state
+  const renderContent = () => {
+    if (filesLoading || (loading && !filesError)) {
+      return (
+        <div className="space-y-4">
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {[0, 1, 2, 3, 4].map(i => <FileCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full" role="grid">
+                <thead>
+                  <tr className="border-b border-surface-border">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Size</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Date Modified</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-border">
+                  {[0, 1, 2, 3, 4].map(i => <FileRowSkeleton key={i} />)}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (filesError) {
+      return (
+        <ErrorState
+          title="Failed to load files"
+          message={filesError}
+          onRetry={retryFiles}
+        />
+      );
+    }
+
+    if (isFirstUse) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-text-tertiary">
+          <div className="w-20 h-20 rounded-2xl bg-accent-primary-light flex items-center justify-center mb-4 animate-pulse">
+            <Inbox className="w-10 h-10 text-accent-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">Welcome to PentaCloud!</h2>
+          <p className="text-text-secondary mb-6 max-w-sm text-center">
+            Your secure, unified cloud storage. Upload your first file to get started.
+          </p>
+          <Button 
+            variant="primary" 
+            size="lg"
+            onClick={() => {
+              // Trigger file input click
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.onchange = async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const filesList = Array.from(target.files || []);
+                for (const file of filesList) {
+                  await onFileUpload(file);
+                }
+              };
+              input.click();
+            }}
+          >
+            <Upload className="w-5 h-5" />
+            Upload Your First File
+          </Button>
+        </div>
+      );
+    }
+
+    if (sortedFiles.length === 0) {
+      return (
+        <EmptyState
+          icon={<Inbox className="w-16 h-16 opacity-50" />}
+          title="No recent files"
+          description="Your recent files will appear here when available."
+          action={{
+            label: "Upload Files",
+            onClick: () => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.onchange = async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const filesList = Array.from(target.files || []);
+                for (const file of filesList) {
+                  await onFileUpload(file);
+                }
+              };
+              input.click();
+            },
+            variant: 'primary'
+          }}
+        />
+      );
+    }
+
+    return (
+      <FileGrid
+        files={sortedFiles}
+        viewMode={viewMode}
+        onDownload={onDownload}
+        onPreview={onPreview}
+        onRename={onRename}
+        onMove={onMove}
+        onDelete={onDelete}
+        onShare={onShare}
+        getFileIcon={getFileIcon}
+        formatSize={formatSize}
+        formatDate={formatDate}
+        t={t}
+      />
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-bg)]">
@@ -440,194 +617,97 @@ export function FileView({
 
         {/* Desktop Stats Cards */}
         <div className="hidden lg:grid lg:grid-cols-4 gap-4 p-4">
-          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '0ms' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Files</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{files.length}</p>
-                <p className="text-xs text-accent-success mt-1 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>{files.filter(f => Date.now() - f.created_at < 7 * 86400000).length} this week</span>
-                </p>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
-                <FileText className="w-7 h-7 text-green-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '50ms' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Storage</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{formatBytes(files.reduce((a, b) => a + b.size, 0))}</p>
-                <p className="text-xs text-text-tertiary mt-1">of {storageStats ? formatBytes(storageStats.total.max) : '—'} available</p>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                <TrendingUp className="w-7 h-7 text-blue-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-tertiary uppercase tracking-wider">Storage Used</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{storageStats ? storageStats.total.percentage : 0}%</p>
-                <div className="mt-2 h-2 bg-surface-tertiary rounded-full overflow-hidden w-32">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      storageStats && storageStats.total.percentage >= 90 ? 'bg-accent-danger' : 
-                      storageStats && storageStats.total.percentage >= 70 ? 'bg-accent-warning' : 'bg-accent-primary'
-                    }`}
-                    style={{ width: `${storageStats ? storageStats.total.percentage : 0}%` }}
-                  />
+          {loading ? (
+            <DashboardStatsSkeleton />
+          ) : (
+            <>
+              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '0ms' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Files</p>
+                    <p className="text-3xl font-bold text-text-primary mt-1">{files.length}</p>
+                    <p className="text-xs text-accent-success mt-1 flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>{files.filter(f => Date.now() - f.created_at < 7 * 86400000).length} this week</span>
+                    </p>
+                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
+                    <FileText className="w-7 h-7 text-green-500" />
+                  </div>
                 </div>
               </div>
-              <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center">
-                <Activity className="w-7 h-7 text-purple-500" />
-              </div>
-            </div>
-          </div>
 
-          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '150ms' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-text-tertiary uppercase tracking-wider">File Types</p>
-                <p className="text-3xl font-bold text-text-primary mt-1">{Object.keys(files.reduce((acc, f) => {
-                  const type = f.mime_type?.split('/')[0] || 'other';
-                  acc[type] = (acc[type] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>)).length}</p>
-                <p className="text-xs text-text-tertiary mt-1">unique types</p>
+              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '50ms' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Storage</p>
+                    <p className="text-3xl font-bold text-text-primary mt-1">{formatBytes(files.reduce((a, b) => a + b.size, 0))}</p>
+                    <p className="text-xs text-text-tertiary mt-1">of {storageStats ? formatBytes(storageStats.total.max) : '—'} available</p>
+                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                    <TrendingUp className="w-7 h-7 text-blue-500" />
+                  </div>
+                </div>
               </div>
-              <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                <Filter className="w-7 h-7 text-orange-500" />
+
+              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '100ms' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Storage Used</p>
+                    <p className="text-3xl font-bold text-text-primary mt-1">{storageStats ? storageStats.total.percentage : 0}%</p>
+                    <div className="mt-2 h-2 bg-surface-tertiary rounded-full overflow-hidden w-32">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          storageStats && storageStats.total.percentage >= 90 ? 'bg-accent-danger' : 
+                          storageStats && storageStats.total.percentage >= 70 ? 'bg-accent-warning' : 'bg-accent-primary'
+                        }`}
+                        style={{ width: `${storageStats ? storageStats.total.percentage : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+                    <Activity className="w-7 h-7 text-purple-500" />
+                  </div>
+                </div>
               </div>
+
+              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '150ms' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-text-tertiary uppercase tracking-wider">File Types</p>
+                    <p className="text-3xl font-bold text-text-primary mt-1">{Object.keys(files.reduce((acc, f) => {
+                      const type = f.mime_type?.split('/')[0] || 'other';
+                      acc[type] = (acc[type] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)).length}</p>
+                    <p className="text-xs text-text-tertiary mt-1">unique types</p>
+                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+                    <Filter className="w-7 h-7 text-orange-500" />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Storage Error State - only show if storage failed but files loaded */}
+          {storageError && !loading && (
+            <div className="hidden lg:block lg:col-span-4 p-4">
+              <ErrorState
+                title="Storage unavailable"
+                message={storageError}
+                onRetry={retryStorage}
+              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           <div className="p-4 lg:p-6">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary" />
-              </div>
-            ) : sortedFiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-text-tertiary">
-                <div className="w-16 h-16 rounded-2xl bg-surface-secondary flex items-center justify-center mb-4">
-                  <Folder className="w-8 h-8 opacity-50" />
-                </div>
-                <p className="text-lg font-medium text-text-secondary mb-1">No files in this folder</p>
-                <p className="text-sm text-text-tertiary">Drag and drop files above or click Upload to get started</p>
-              </div>
-            ) : (
-              <FileGrid
-                files={sortedFiles}
-                viewMode={viewMode}
-                onDownload={onDownload}
-                onPreview={onPreview}
-                onRename={onRename}
-                onMove={onMove}
-                onDelete={onDelete}
-                onShare={onShare}
-                getFileIcon={getFileIcon}
-                formatSize={formatSize}
-                formatDate={formatDate}
-                t={t}
-              />
-            )}
+            {renderContent()}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function StorageMeterMini({ t }: { t: (key: string) => string }) {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await storageApi.stats();
-        const data = response.data;
-        if (data && typeof data === 'object' && 
-            data.total && typeof data.total === 'object' &&
-            Array.isArray(data.accounts)) {
-          setStats(data);
-        } else {
-          console.error('Invalid storage stats response:', data);
-          setStats({
-            total: { used: 0, max: 0, free: 0, percentage: 0 },
-            accounts: []
-          });
-        }
-      } catch (err) {
-        console.error('Failed to fetch storage stats:', err);
-        setStats({
-          total: { used: 0, max: 0, free: 0, percentage: 0 },
-          accounts: []
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
-  if (loading || !stats) return null;
-
-  const totalPercent = stats.total.percentage;
-  const getColor = (p: number) => p >= 90 ? 'bg-accent-danger' : p >= 70 ? 'bg-accent-warning' : 'bg-accent-primary';
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-text-secondary">Total Storage</span>
-        <span className="font-medium text-text-primary">{formatBytes(stats.total.used)} / {formatBytes(stats.total.max)}</span>
-      </div>
-      <div className="h-1.5 bg-surface-tertiary rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-500 ${getColor(totalPercent)}`} style={{ width: `${totalPercent}%` }} />
-      </div>
-      <div className="flex justify-between text-xs text-text-tertiary">
-        <span>{formatBytes(stats.total.used)} {t('Used')}</span>
-        <span>{formatBytes(stats.total.max - stats.total.used)} {t('Free')}</span>
-      </div>
-    </div>
-  );
-}
-
-function SharedView({ t }: { t: (key: string) => string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center text-text-tertiary">
-        <Share className="w-16 h-16 mx-auto mb-4 opacity-50" />
-        <h2 className="text-xl font-medium mb-2">{t('Shared')}</h2>
-        <p>Shared files and folders will appear here</p>
-      </div>
-    </div>
-  );
-}
-
-function StorageView({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-0">
-      <div className="fixed inset-0 bg-overlay-backdrop z-modal" onClick={onClose} />
-      <StorageDashboard onClose={onClose} />
-    </div>
-  );
-}
-
-function SettingsView({ t }: { t: (key: string) => string }) {
-  return (
-    <div className="flex-1 p-8 max-w-4xl mx-auto w-full">
-      <h1 className="text-2xl font-bold mb-6">{t('Settings')}</h1>
-      <div className="card p-6">
-        <p className="text-text-secondary">Settings page - Account, B2 accounts, Security, Danger Zone</p>
       </div>
     </div>
   );
