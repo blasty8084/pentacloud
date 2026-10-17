@@ -79,11 +79,15 @@ interface BackendFile {
   id: string;
   name: string;
   original_name: string;
-  mime_type: string;
+  mime_type: string | null;
   size: number;
   folder_id: string | null;
+  user_id: string;
   b2_account_id: string;
+  b2_file_id: string;
+  b2_file_name: string;
   created_at: number;
+  updated_at: number;
 }
 
 interface Folder {

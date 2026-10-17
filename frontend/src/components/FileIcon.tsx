@@ -66,12 +66,12 @@ export function FileIcon({ mimeType, fileName, isFolder, isOpen, className, size
   }
 }
 
-export function getFileTypeColor(mimeType: string, fileName: string): string {
-  if (!mimeType) return 'text-gray-500 bg-gray-500/10';
+export function getFileTypeColor(mimeType: string | null | undefined, fileName: string): string {
+  if (!mimeType) return 'text-text-tertiary bg-surface-tertiary';
   if (mimeType.startsWith('image/')) return 'text-green-500 bg-green-500/10';
   if (mimeType === 'application/pdf') return 'text-red-500 bg-red-500/10';
   if (mimeType.startsWith('video/')) return 'text-purple-500 bg-purple-500/10';
   if (mimeType.startsWith('audio/')) return 'text-orange-500 bg-orange-500/10';
   if (mimeType.startsWith('text/')) return 'text-blue-500 bg-blue-500/10';
-  return 'text-gray-500 bg-gray-500/10';
+  return 'text-text-tertiary bg-surface-tertiary';
 }

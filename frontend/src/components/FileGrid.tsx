@@ -137,15 +137,15 @@ export function FileGrid({
     );
   };
 
-  const renderFileRow = (file: File) => {
+  const renderFileRow = (file: BackendFile) => {
     return (
       <tr className="hover:bg-surface-secondary/50 transition-colors">
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
-            <FileIcon mimeType={file.mime_type} fileName={file.name} className="w-10 h-10" />
+            <FileIcon mimeType={file.mime_type ?? undefined} fileName={file.name} className="w-10 h-10" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-text-primary truncate" title={file.name}>{file.name}</p>
-              <p className="text-xs text-text-tertiary">{file.mime_type}</p>
+              <p className="text-xs text-text-tertiary">{file.mime_type ?? 'unknown'}</p>
             </div>
           </div>
         </td>
