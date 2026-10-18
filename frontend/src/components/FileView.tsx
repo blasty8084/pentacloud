@@ -67,7 +67,6 @@ interface FileViewProps {
   onMove: (file: BackendFile) => void;
   onDelete: (id: string, type: 'file' | 'folder') => Promise<void>;
   onShare: (file: BackendFile) => void;
-  getFileIcon: (mimeType: string) => React.ReactNode;
   formatSize: (bytes: number) => string;
   formatDate: (timestamp: number) => string;
   uploads: { fileId: string; status: string }[];
@@ -137,7 +136,6 @@ export function FileView({
   onMove,
   onDelete,
   onShare,
-  getFileIcon,
   formatSize,
   formatDate,
   uploads,
@@ -333,7 +331,6 @@ export function FileView({
         onMove={onMove}
         onDelete={onDelete}
         onShare={onShare}
-        getFileIcon={getFileIcon}
         formatSize={formatSize}
         formatDate={formatDate}
         t={t}
