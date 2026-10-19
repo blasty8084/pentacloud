@@ -72,6 +72,10 @@ interface FileViewProps {
   uploads: { fileId: string; status: string }[];
   t: (key: string) => string;
   storageStats: StorageStats | null;
+  storageError: string | null;
+  recentFilesError: string | null;
+  onRetryStorage: () => Promise<void>;
+  onRetryFiles: () => Promise<void>;
 }
 
 interface BackendFile {
@@ -145,11 +149,18 @@ export function FileView({
   const [filterType, setFilterType] = useState<string>('all');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
-  const [filesError, setFilesError] = useState<string | null>(null);
-  const [filesLoading, setFilesLoading] = useState(false);
-  const [storageError, setStorageError] = useState<string | null>(null);
-  const [storageLoading, setStorageLoading] = useState(false);
   const [isFirstUse, setIsFirstUse] = useState(false);
+
+  // Derive loading states for dashboard sections
+  const isFilesLoading = loading && !recentFilesError;
+  const isFilesEmpty = !loading && !recentFilesError && sortedFiles.length === 0 && !isFirstUse;
+  const isFilesError = !!recentFilesError;
+  const isFilesSuccess = !loading && !recentFilesError && sortedFiles.length > 0;
+
+  const isStorageLoading = storageStats === null && !storageError;
+  const isStorageError = !!storageError;
+  const isStorageSuccess = storageStats !== null && !storageError;
+  // Note: Storage doesn't really have an "empty" state - zero values are valid success states
 
   const getFileType = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return 'image';
@@ -197,7 +208,7 @@ export function FileView({
 
   // Check for first use - no files and no error
   useEffect(() => {
-    if (!loading && !filesError && files.length === 0 && !storageError) {
+    if (!loading && !recentFilesError && files.length === 0 && !storageError) {
       // Check if this is truly first use (no files ever uploaded)
       // We can determine this by checking if storage is also empty
       const isStorageEmpty = storageStats && storageStats.total.used === 0;
@@ -205,23 +216,30 @@ export function FileView({
         setIsFirstUse(true);
       }
     }
-  }, [loading, files, filesError, storageStats, storageError]);
+  }, [loading, files, recentFilesError, storageStats, storageError]);
 
-  const retryFiles = useCallback(() => {
-    setFilesLoading(true);
-    setFilesError(null);
-    // The parent component's fetchFiles will be called via the loading prop
-    // We just signal that we want to retry
-  }, []);
+  const retryFiles = useCallback(async () => {
+    try {
+      await onRetryFiles();
+    } catch (err) {
+      // Error will be handled by the parent component's state update
+      console.error('Retry files failed:', err);
+    }
+  }, [onRetryFiles]);
 
-  const retryStorage = useCallback(() => {
-    setStorageLoading(true);
-    setStorageError(null);
-  }, []);
+  const retryStorage = useCallback(async () => {
+    try {
+      await onRetryStorage();
+    } catch (err) {
+      // Error will be handled by the parent component's state update
+      console.error('Retry storage failed:', err);
+    }
+  }, [onRetryStorage]);
 
   // Render content based on state
   const renderContent = () => {
-    if (filesLoading || (loading && !filesError)) {
+    // Files loading state
+    if (isFilesLoading) {
       return (
         <div className="space-y-4">
           {viewMode === 'grid' ? (
@@ -244,21 +262,23 @@ export function FileView({
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          )
+        }
       );
     }
 
-    if (filesError) {
+    // Files error state
+    if (isFilesError) {
       return (
         <ErrorState
           title="Failed to load files"
-          message={filesError}
+          message={recentFilesError}
           onRetry={retryFiles}
         />
       );
     }
 
+    // First use onboarding
     if (isFirstUse) {
       return (
         <div className="flex flex-col items-center justify-center h-64 text-text-tertiary">
@@ -284,6 +304,116 @@ export function FileView({
                   await onFileUpload(file);
                 }
               };
+              input.click();
+            }}
+          >
+            <Upload className="w-5 h-5" />
+            Upload Your First File
+          </Button>
+        </div>
+      );
+    }
+
+    // Files empty state
+    if (isFilesEmpty) {
+      return (
+        <EmptyState
+          icon={<Inbox className="w-16 h-16 opacity-50" />}
+          title="No recent files"
+          description="Your recent files will appear here when available."
+          action={{
+            label: "Upload Files",
+            onClick: () => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.onchange = async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const filesList = Array.from(target.files || []);
+                for (const file of filesList) {
+                  await onFileUpload(file);
+                }
+              };
+              input.click();
+            },
+            variant: 'primary'
+          }}
+        />
+      );
+    }
+
+    // Files success state
+    return (
+      <FileGrid
+        files={sortedFiles}
+        viewMode={viewMode}
+        onDownload={onDownload}
+        onPreview={onPreview}
+        onRename={onRename}
+        onMove={onMove}
+        onDelete={onDelete}
+        onShare={onShare}
+        formatSize={formatSize}
+        formatDate={formatDate}
+        t={t}
+      />
+    );
+  };
+              input.click();
+            }}
+          >
+            <Upload className="w-5 h-5" />
+            Upload Your First File
+          </Button>
+        </div>
+      );
+    }
+
+    // Files empty state
+    if (isFilesEmpty) {
+      return (
+        <EmptyState
+          icon={<Inbox className="w-16 h-16 opacity-50" />}
+          title="No recent files"
+          description="Your recent files will appear here when available."
+          action={{
+            label: "Upload Files",
+            onClick: () => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.onchange = async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const filesList = Array.from(target.files || []);
+                for (const file of filesList) {
+                  await onFileUpload(file);
+                }
+              };
+              input.click();
+            },
+            variant: 'primary'
+          }}
+        />
+      );
+    }
+
+    // Files success state
+    return (
+      <FileGrid
+        files={sortedFiles}
+        viewMode={viewMode}
+        onDownload={onDownload}
+        onPreview={onPreview}
+        onRename={onRename}
+        onMove={onMove}
+        onDelete={onDelete}
+        onShare={onShare}
+        formatSize={formatSize}
+        formatDate={formatDate}
+        t={t}
+      />
+    );
+  };
               input.click();
             }}
           >
@@ -595,7 +725,13 @@ export function FileView({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-text-tertiary">Total Files</p>
-                  <p className="text-2xl font-bold text-text-primary">{files.length}</p>
+                  {isFilesLoading ? (
+                    <StatCardSkeleton className="stat-card-skeleton-mobile" />
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-text-primary">{files.length}</p>
+                    </>
+                  )}
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-green-500" />
@@ -606,7 +742,13 @@ export function FileView({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-text-tertiary">Total Size</p>
-                  <p className="text-2xl font-bold text-text-primary">{formatBytes(files.reduce((a, b) => a + b.size, 0))}</p>
+                  {isStorageLoading ? (
+                    <StatCardSkeleton className="stat-card-skeleton-mobile" />
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-text-primary">{storageStats ? formatBytes(storageStats.total.used) : '0 B'}</p>
+                    </>
+                  )}
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-blue-500" />
@@ -618,81 +760,99 @@ export function FileView({
 
         {/* Desktop Stats Cards */}
         <div className="hidden lg:grid lg:grid-cols-4 gap-4 p-4">
-          {loading ? (
-            <DashboardStatsSkeleton />
-          ) : (
-            <>
-              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '0ms' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Files</p>
-                    <p className="text-3xl font-bold text-text-primary mt-1">{files.length}</p>
-                    <p className="text-xs text-accent-success mt-1 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      <span>{files.filter(f => Date.now() - f.created_at < 7 * 86400000).length} this week</span>
-                    </p>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
-                    <FileText className="w-7 h-7 text-green-500" />
-                  </div>
+          {/* Total Files Card */}
+          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '0ms' }}>
+            {isFilesLoading ? (
+              <StatCardSkeleton className="stat-card-skeleton" />
+            ) : (
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Files</p>
+                  <p className="text-3xl font-bold text-text-primary mt-1">{files.length}</p>
+                  <p className="text-xs text-accent-success mt-1 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>{files.filter(f => Date.now() - f.created_at < 7 * 86400000).length} this week</span>
+                  </p>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
+                  <FileText className="w-7 h-7 text-green-500" />
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '50ms' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Storage</p>
-                    <p className="text-3xl font-bold text-text-primary mt-1">{formatBytes(files.reduce((a, b) => a + b.size, 0))}</p>
-                    <p className="text-xs text-text-tertiary mt-1">of {storageStats ? formatBytes(storageStats.total.max) : '—'} available</p>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                    <TrendingUp className="w-7 h-7 text-blue-500" />
-                  </div>
+          {/* Total Storage Card */}
+          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '50ms' }}>
+            {isStorageLoading ? (
+              <StatCardSkeleton className="stat-card-skeleton" />
+            ) : (
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-text-tertiary uppercase tracking-wider">Total Storage</p>
+                  <p className="text-3xl font-bold text-text-primary mt-1">{storageStats ? formatBytes(storageStats.total.used) : '0 B'}</p>
+                  <p className="text-xs text-text-tertiary mt-1">of {storageStats ? formatBytes(storageStats.total.max) : '—'} available</p>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-7 h-7 text-blue-500" />
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-text-tertiary uppercase tracking-wider">Storage Used</p>
-                    <p className="text-3xl font-bold text-text-primary mt-1">{storageStats ? storageStats.total.percentage : 0}%</p>
-                    <div className="mt-2 h-2 bg-surface-tertiary rounded-full overflow-hidden w-32">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          storageStats && storageStats.total.percentage >= 90 ? 'bg-accent-danger' : 
-                          storageStats && storageStats.total.percentage >= 70 ? 'bg-accent-warning' : 'bg-accent-primary'
-                        }`}
-                        style={{ width: `${storageStats ? storageStats.total.percentage : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center">
-                    <Activity className="w-7 h-7 text-purple-500" />
+          {/* Storage Used Card */}
+          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '100ms' }}>
+            {isStorageLoading ? (
+              <>
+                <StatCardSkeleton className="stat-card-skeleton" />
+                <StorageMeterSkeleton className="storage-meter-skeleton" />
+              </>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-text-tertiary uppercase tracking-wider">Storage Used</p>
+                  <p className="text-3xl font-bold text-text-primary mt-1">{storageStats ? storageStats.total.percentage : 0}%</p>
+                  <div className="mt-2 h-2 bg-surface-tertiary rounded-full overflow-hidden w-32">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        storageStats && storageStats.total.percentage >= 90 ? 'bg-accent-danger' : 
+                        storageStats && storageStats.total.percentage >= 70 ? 'bg-accent-warning' : 'bg-accent-primary'
+                      }`}
+                      style={{ width: `${storageStats ? storageStats.total.percentage : 0}%` }}
+                    />
                   </div>
                 </div>
-              </div>
-
-              <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '150ms' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-text-tertiary uppercase tracking-wider">File Types</p>
-                    <p className="text-3xl font-bold text-text-primary mt-1">{Object.keys(files.reduce((acc, f) => {
-                      const type = f.mime_type?.split('/')[0] || 'other';
-                      acc[type] = (acc[type] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)).length}</p>
-                    <p className="text-xs text-text-tertiary mt-1">unique types</p>
-                  </div>
-                  <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
-                    <Filter className="w-7 h-7 text-orange-500" />
-                  </div>
+                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+                  <Activity className="w-7 h-7 text-purple-500" />
                 </div>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
-          {/* Storage Error State - only show if storage failed but files loaded */}
-          {storageError && !loading && (
+          {/* File Types Card */}
+          <div className="card card-hover p-5 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            {isFilesLoading ? (
+              <StatCardSkeleton className="stat-card-skeleton" />
+            ) : (
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-text-tertiary uppercase tracking-wider">File Types</p>
+                  <p className="text-3xl font-bold text-text-primary mt-1">{Object.keys(files.reduce((acc, f) => {
+                    const type = f.mime_type?.split('/')[0] || 'other';
+                    acc[type] = (acc[type] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)).length}</p>
+                  <p className="text-xs text-text-tertiary mt-1">unique types</p>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+                  <Filter className="w-7 h-7 text-orange-500" />
+                </div>
+              </div>
+            )}
+          </div>
+        }
+
+          {/* Storage Error State - show when storage has failed */}
+          {storageError && (
             <div className="hidden lg:block lg:col-span-4 p-4">
               <ErrorState
                 title="Storage unavailable"

@@ -10,6 +10,7 @@ interface ErrorStateProps {
   onGoHome?: () => void;
   showHomeLink?: boolean;
   className?: string;
+  retryLoading?: boolean;
 }
 
 export function ErrorState({ 
@@ -19,7 +20,8 @@ export function ErrorState({
   onRetry, 
   onGoHome, 
   showHomeLink = true,
-  className 
+  className,
+  retryLoading = false
 }: ErrorStateProps) {
   return (
     <div className={`empty-state ${className || ''}`}>
@@ -30,8 +32,15 @@ export function ErrorState({
       <p className="text-text-secondary mb-6 max-w-sm">{message}</p>
       <div className="flex items-center justify-center gap-3 flex-wrap">
         {onRetry && (
-          <Button variant="primary" onClick={onRetry}>
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="primary" onClick={onRetry} loading={retryLoading}>
+            {retryLoading ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
             Try Again
           </Button>
         )}

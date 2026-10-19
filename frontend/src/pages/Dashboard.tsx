@@ -126,6 +126,7 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState<NavItem>('files');
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
   const [recentFilesError, setRecentFilesError] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<BackendFile | null>(null);
@@ -173,32 +174,15 @@ export default function Dashboard() {
   }, []);
 
   const fetchStorageStats = useCallback(async () => {
+    setStorageLoading(true);
     try {
       const response = await storageApi.stats();
       const data = response.data;
+      // Validate response shape
       if (data && typeof data === 'object' && 
           data.total && typeof data.total === 'object' &&
           Array.isArray(data.accounts)) {
-        const validated = {
-          total: {
-            used: Number(data.total.used) || 0,
-            max: Number(data.total.max) || 0,
-            percentage: Number(data.total.percentage) || 0,
-            free: data.total.free !== undefined ? Number(data.total.free) : (Number(data.total.max) || 0) - (Number(data.total.used) || 0),
-          },
-          accounts: Array.isArray(data.accounts) ? data.accounts.map((acc: any) => ({
-            id: String(acc.id),
-            name: String(acc.name),
-            used: Number(acc.used) || 0,
-            max: Number(acc.max) || 0,
-            free: acc.free !== undefined ? Number(acc.free) : (Number(acc.max) || 0) - (Number(acc.used) || 0),
-            percentage: Number(acc.percentage) || 0,
-            health: acc.health,
-            available: acc.available,
-            bucket_name: acc.bucket_name,
-            bucket_endpoint: acc.bucket_endpoint,
-          })) : [],
-        };
+        const validated = data as StorageStats;
         setStorageStats(validated);
         setStorageError(null);
       } else {
@@ -208,6 +192,8 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch storage stats:', err);
       setStorageError('Failed to load storage statistics');
+    } finally {
+      setStorageLoading(false);
     }
   }, []);
 
@@ -442,39 +428,43 @@ export default function Dashboard() {
         />
 
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {activeNav === 'files' && (
-            <FileView
-              files={sortedFiles}
-              folders={folders}
-              folderTree={folderTree}
-              currentFolderId={currentFolderId}
-              setCurrentFolderId={setCurrentFolderId}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              loading={loading}
-              breadcrumbs={breadcrumbs}
-              onFileUpload={handleFileUpload}
-              onCreateFolder={handleCreateFolder}
-              onDownload={handleDownloadFile}
-              onPreview={handlePreview}
-              onRename={(file) => { setSelectedFile(file); setRenameModalOpen(true); }}
-              onMove={(file) => { setSelectedFile(file); setMoveModalOpen(true); }}
-              onDelete={handleDelete}
-              onShare={(file) => { setSelectedFile(file); setShareModalOpen(true); }}
-              getFileIcon={getFileIcon}
-              formatSize={formatBytes}
-              formatDate={formatDate}
-              uploads={uploads}
-              t={t}
-              storageStats={storageStats}
-            />
-          )}
+           {activeNav === 'files' && (
+             <FileView
+               files={sortedFiles}
+               folders={folders}
+               folderTree={folderTree}
+               currentFolderId={currentFolderId}
+               setCurrentFolderId={setCurrentFolderId}
+               searchQuery={searchQuery}
+               setSearchQuery={setSearchQuery}
+               viewMode={viewMode}
+               setViewMode={setViewMode}
+               sortBy={sortBy}
+               setSortBy={setSortBy}
+               sortOrder={sortOrder}
+               setSortOrder={setSortOrder}
+               loading={loading}
+               breadcrumbs={breadcrumbs}
+               onFileUpload={handleFileUpload}
+               onCreateFolder={handleCreateFolder}
+               onDownload={handleDownloadFile}
+               onPreview={handlePreview}
+               onRename={(file) => { setSelectedFile(file); setRenameModalOpen(true); }}
+               onMove={(file) => { setSelectedFile(file); setMoveModalOpen(true); }}
+               onDelete={handleDelete}
+               onShare={(file) => { setSelectedFile(file); setShareModalOpen(true); }}
+               getFileIcon={getFileIcon}
+               formatSize={formatBytes}
+               formatDate={formatDate}
+               uploads={uploads}
+               t={t}
+               storageStats={storageStats}
+               storageError={storageError}
+               recentFilesError={recentFilesError}
+               onRetryStorage={fetchStorageStats}
+               onRetryFiles={fetchFiles}
+             />
+           )}
 
           {activeNav === 'shared' && <SharedView t={t} />}
 
